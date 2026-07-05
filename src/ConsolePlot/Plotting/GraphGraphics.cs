@@ -13,6 +13,9 @@ namespace ConsolePlot.Plotting
         private readonly ConsoleGraphics _graphics;
         private readonly CoordinateConverter _converter;
 
+        // Bottom-anchored partial-fill glyphs 1/8..8/8 (index 1..8), for a bar's fractional top cell.
+        private static readonly char[] EighthUp = { ' ', '▁', '▂', '▃', '▄', '▅', '▆', '▇', '█' };
+
         public GraphGraphics(ConsoleGraphics graphics, CoordinateConverter converter)
         {
             _graphics = graphics;
@@ -64,6 +67,62 @@ namespace ConsolePlot.Plotting
             }
 
             DrawPoints(pointPen, xs, ys);
+        }
+
+        /// <summary>
+        /// Draws filled vertical bars from <paramref name="baseline"/> to each value. Interior cells are full blocks;
+        /// the bar top gets sub-cell precision from an eighth-block glyph. Bars are foreground colour fills.
+        /// </summary>
+        public void DrawBars(ConsoleGUI.Data.Color color, IReadOnlyList<double> xs, IReadOnlyList<double> ys, double baseline, double widthFraction)
+        {
+            int baseRow = ConvertY(baseline);
+            int half = BarHalfWidth(xs, widthFraction);
+            for (int i = 0; i < xs.Count; i++)
+            {
+                if (double.IsNaN(xs[i]) || double.IsNaN(ys[i]) || double.IsInfinity(xs[i]) || double.IsInfinity(ys[i]))
+                    continue;
+                int xc = ConvertX(xs[i]);
+                double topExact = _converter.ConvertY(ys[i]);
+                for (int col = xc - half; col <= xc + half; col++)
+                    FillColumn(col, baseRow, topExact, color);
+            }
+        }
+
+        // Fill one bar column. Image y increases upward, so an upward bar (top above the baseline) fills full cells
+        // then a bottom-anchored eighth-block for the fractional top cell — which reads correctly after PlotImage's
+        // vertical flip. A downward bar (value below baseline) fills full cells only (no sub-cell top).
+        private void FillColumn(int col, int baseRow, double topExact, ConsoleGUI.Data.Color color)
+        {
+            int topRow = (int)Math.Floor(topExact);
+            if (topRow >= baseRow)
+            {
+                for (int r = baseRow; r < topRow; r++) Cell(col, r, '█', color);
+                double frac = topExact - topRow;
+                if (frac > 0.05) Cell(col, topRow, EighthUp[Math.Clamp((int)Math.Ceiling(frac * 8), 1, 8)], color);
+            }
+            else
+            {
+                for (int r = (int)Math.Ceiling(topExact); r <= baseRow; r++) Cell(col, r, '█', color);
+            }
+        }
+
+        private void Cell(int col, int row, char ch, ConsoleGUI.Data.Color color) =>
+            _graphics.DrawPoint(new ConsolePointPen(new ConsolePointBrush(ch), color), col, row);
+
+        // Bar half-width in cells: a fraction of the smallest gap between adjacent bar positions (a lone bar gets a
+        // small default), so bars fill their slot without overlapping neighbours.
+        private int BarHalfWidth(IReadOnlyList<double> xs, double widthFraction)
+        {
+            int gap = int.MaxValue;
+            for (int i = 1; i < xs.Count; i++)
+            {
+                if (double.IsNaN(xs[i]) || double.IsNaN(xs[i - 1])) continue;
+                int g = Math.Abs(ConvertX(xs[i]) - ConvertX(xs[i - 1]));
+                if (g > 0 && g < gap) gap = g;
+            }
+            if (gap == int.MaxValue) gap = 3;
+            int w = Math.Max(1, (int)(gap * widthFraction));
+            return (w - 1) / 2;
         }
 
         public void DrawVertical(LinePen pen, double x) =>

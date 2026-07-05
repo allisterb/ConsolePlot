@@ -118,6 +118,24 @@ namespace ConsolePlot
         }
 
         /// <summary>
+        /// Adds a vertical bar series: each point drawn as a filled bar from <paramref name="baseline"/> to its value.
+        /// </summary>
+        public BarSeries AddBars(
+            IReadOnlyCollection<double> xs,
+            IReadOnlyCollection<double> ys,
+            ConsoleGUI.Data.Color color,
+            double baseline = 0,
+            double widthFraction = 0.8)
+        {
+            if (xs.Count != ys.Count)
+                throw new ArgumentException("X and Y collections must have the same length.");
+
+            var bars = new BarSeries(xs, ys, color, baseline, widthFraction);
+            Elements.Add(bars);
+            return bars;
+        }
+
+        /// <summary>
         /// Draws the plot on the console image.
         /// </summary>
         public void Draw()
