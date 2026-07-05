@@ -32,9 +32,9 @@ namespace ConsolePlot
         public TickSettings Ticks => _settings.Ticks;
 
         /// <summary>
-        /// Gets the collection of data series added to the plot.
+        /// Gets the collection of elements (series, scatter, stems, …) added to the plot.
         /// </summary>
-        public List<Series> Series { get; } = new List<Series>();
+        public List<PlotElement> Elements { get; } = new List<PlotElement>();
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Plot" /> class.
@@ -75,7 +75,45 @@ namespace ConsolePlot
                 pen = new PointPen(_settings.DefaultGraphBrush ?? SystemPointBrushes.Braille, GetNextAvailableColor());
 
             var series = new Series(xs, ys, pen);
-            Series.Add(series);
+            Elements.Add(series);
+            return series;
+        }
+
+        /// <summary>
+        /// Adds a scatter series: the data points drawn as markers, without connecting lines.
+        /// </summary>
+        public ScatterSeries AddScatter(
+            IReadOnlyCollection<double> xs,
+            IReadOnlyCollection<double> ys,
+            PointPen pen = default)
+        {
+            if (xs.Count != ys.Count)
+                throw new ArgumentException("X and Y collections must have the same length.");
+            if (pen.Equals(default(PointPen)))
+                pen = new PointPen(_settings.DefaultGraphBrush ?? SystemPointBrushes.Braille, GetNextAvailableColor());
+
+            var series = new ScatterSeries(xs, ys, pen);
+            Elements.Add(series);
+            return series;
+        }
+
+        /// <summary>
+        /// Adds a stem series: a vertical line from <paramref name="baseline"/> to each point, capped with a marker.
+        /// </summary>
+        public StemSeries AddStem(
+            IReadOnlyCollection<double> xs,
+            IReadOnlyCollection<double> ys,
+            PointPen pen = default,
+            double baseline = 0,
+            LinePen stemPen = null)
+        {
+            if (xs.Count != ys.Count)
+                throw new ArgumentException("X and Y collections must have the same length.");
+            if (pen.Equals(default(PointPen)))
+                pen = new PointPen(_settings.DefaultGraphBrush ?? SystemPointBrushes.Braille, GetNextAvailableColor());
+
+            var series = new StemSeries(xs, ys, pen, baseline, stemPen);
+            Elements.Add(series);
             return series;
         }
 
@@ -85,7 +123,7 @@ namespace ConsolePlot
         public void Draw()
         {
             _settings.Validate();
-            var plotData = PlotData.Calculate(Series, _settings, _image.Width, _image.Height);
+            var plotData = PlotData.Calculate(Elements, _settings, _image.Width, _image.Height);
             var renderer = new PlotRenderer(_image, plotData, _settings);
 
             renderer.Draw();
@@ -140,8 +178,8 @@ namespace ConsolePlot
         {
             var usedColors = new HashSet<ConsoleGUI.Data.Color>();
 
-            // Include colors of existing series
-            usedColors.UnionWith(Series.Select(s => s.Pen.Color));
+            // Include colors of existing point-based elements (series/scatter/stem)
+            usedColors.UnionWith(Elements.OfType<Series>().Select(s => s.Pen.Color));
 
             // Include axis color if visible
             if (_settings.Axis.IsVisible)

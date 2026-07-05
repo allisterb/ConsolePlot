@@ -77,9 +77,9 @@ namespace ConsolePlot.Plotting
 
         private void DrawSeries(GraphGraphics graphics)
         {
-            foreach (var series in _plotData.Series)
+            foreach (var element in _plotData.Elements)
             {
-                graphics.DrawLines(series.Pen, series.Xs, series.Ys);
+                element.Draw(graphics);
             }
         }
 

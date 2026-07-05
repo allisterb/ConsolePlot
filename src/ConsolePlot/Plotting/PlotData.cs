@@ -26,9 +26,9 @@ namespace ConsolePlot.Plotting
         public Rectangle DrawingArea { get; }
 
         /// <summary>
-        /// Gets the series to be plotted.
+        /// Gets the elements to be plotted.
         /// </summary>
-        public List<Series> Series { get; }
+        public List<PlotElement> Elements { get; }
 
         /// <summary>
         /// Gets the X-axis ticks.
@@ -46,22 +46,22 @@ namespace ConsolePlot.Plotting
             List<Tick> xTicks,
             List<Tick> yTicks,
             Point axis,
-            List<Series> series)
+            List<PlotElement> elements)
         {
             DataBounds = dataBounds;
             DrawingArea = drawingArea;
             XTicks = xTicks;
             YTicks = yTicks;
             Axis = axis;
-            Series = series;
+            Elements = elements;
         }
 
         /// <summary>
-        /// Calculates the plot data based on the provided series and settings.
+        /// Calculates the plot data based on the provided elements and settings.
         /// </summary>
-        public static PlotData Calculate(List<Series> series, PlotSettings settings, int width, int height)
+        public static PlotData Calculate(List<PlotElement> elements, PlotSettings settings, int width, int height)
         {
-            var initialBounds = CalculateDataBounds(series);
+            var initialBounds = CalculateDataBounds(elements);
 
             // Check for the special case where all visual elements are disabled
             if (!settings.Ticks.Labels.IsVisible &&
@@ -69,7 +69,7 @@ namespace ConsolePlot.Plotting
                 !settings.Axis.IsVisible &&
                 !settings.Grid.IsVisible)
             {
-                return new PlotData(initialBounds, new Rectangle(0, 0, width, height), new List<Tick>(), new List<Tick>(), new Point(0, 0), series);
+                return new PlotData(initialBounds, new Rectangle(0, 0, width, height), new List<Tick>(), new List<Tick>(), new Point(0, 0), elements);
             }
 
             var (adjustedYBounds, yTicks) = CalculateAdjustedBoundsAndTicks(settings, initialBounds.YMin,
@@ -83,7 +83,7 @@ namespace ConsolePlot.Plotting
             var drawingArea = CalculateDrawingArea(settings, CalculateXTickLabelSize(), CalculateYTickLabelSize(yTicks),
                 width, height);
 
-            return new PlotData(adjustedBounds, drawingArea, xTicks, yTicks, axisCross, series);
+            return new PlotData(adjustedBounds, drawingArea, xTicks, yTicks, axisCross, elements);
         }
 
         private static ((double min, double max) bounds, List<Tick> ticks) CalculateAdjustedBoundsAndTicks(
@@ -117,12 +117,14 @@ namespace ConsolePlot.Plotting
             return yTicks.Max(t => t.Label.Length);
         }
 
-        private static Bounds CalculateDataBounds(List<Series> series)
+        private static Bounds CalculateDataBounds(List<PlotElement> elements)
         {
-            var xValues = series.SelectMany(s => s.Xs).Where(d => !double.IsInfinity(d) && !double.IsNaN(d));
-            var yValues = series.SelectMany(s => s.Ys).Where(d => !double.IsInfinity(d) && !double.IsNaN(d));
+            Bounds bounds = null;
+            foreach (var element in elements)
+                bounds = Bounds.Union(bounds, element.GetDataBounds());
 
-            return new Bounds(xValues.Min(), xValues.Max(), yValues.Min(), yValues.Max());
+            // No finite data anywhere: fall back to a unit box so tick/area math stays well-defined.
+            return bounds ?? new Bounds(0, 1, 0, 1);
         }
 
         private static double CalculateTickStep(double min, double max, int desiredStep, int size)
