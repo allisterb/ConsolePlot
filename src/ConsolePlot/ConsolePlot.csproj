@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <Authors>Sumrix</Authors>
     <PackageProjectUrl>https://github.com/Sumrix/ConsolePlot</PackageProjectUrl>
     <PackageReadmeFile>nuget_readme.md</PackageReadmeFile>
@@ -35,6 +35,10 @@
       <Pack>True</Pack>
       <PackagePath>\</PackagePath>
     </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\C-sharp-console-gui-framework\ConsoleGUI\ConsoleGUI.csproj" />
   </ItemGroup>
 
 </Project>

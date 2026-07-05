@@ -15,14 +15,14 @@ namespace ConsolePlot.Drawing
         /// <summary>
         /// Gets the foreground color of the pixel.
         /// </summary>
-        public ConsoleColor ForegroundColor { get; }
+        public ConsoleGUI.Data.Color ForegroundColor { get; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Pixel"/> struct.
         /// </summary>
         /// <param name="character">The character of the pixel.</param>
         /// <param name="foregroundColor">The foreground color of the pixel.</param>
-        public Pixel(char character, ConsoleColor foregroundColor)
+        public Pixel(char character, ConsoleGUI.Data.Color foregroundColor)
         {
             Character = character;
             ForegroundColor = foregroundColor;

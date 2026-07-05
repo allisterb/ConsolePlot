@@ -6,7 +6,7 @@
     /// This brush can be used in both <see cref="ConsoleGraphics"/> and <see cref="VirtualGraphics"/>, 
     /// but is optimized for console environments.
     /// </summary>
-    public class ConsolePointBrush : IPointBrush
+    public readonly struct ConsolePointBrush : IPointBrush
     {
         /// <summary>
         /// Gets the character used to draw points.

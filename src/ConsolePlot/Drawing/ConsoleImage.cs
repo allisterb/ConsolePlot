@@ -5,9 +5,9 @@ namespace ConsolePlot.Drawing
     /// <summary>
     /// Represents an image that can be drawn on the console.
     /// </summary>
-    public class ConsoleImage
+    public readonly struct ConsoleImage
     {
-        private readonly Pixel[,] _buffer;
+        public readonly Pixel[,] buffer;
 
         /// <summary>
         /// Gets the width of the image.
@@ -28,7 +28,7 @@ namespace ConsolePlot.Drawing
         {
             Width = width;
             Height = height;
-            _buffer = new Pixel[height, width];
+            buffer = new Pixel[height, width];
         }
 
         /// <summary>
@@ -38,11 +38,11 @@ namespace ConsolePlot.Drawing
         /// <param name="y">The y-coordinate of the pixel.</param>
         /// <param name="c">The character to set.</param>
         /// <param name="foregroundColor">The foreground color of the pixel.</param>
-        public void SetPixel(int x, int y, char c, ConsoleColor foregroundColor)
+        public void SetPixel(int x, int y, char c, ConsoleGUI.Data.Color foregroundColor)
         {
             if (x >= 0 && x < Width && y >= 0 && y < Height)
             {
-                _buffer[y, x] = new Pixel(c, foregroundColor);
+                buffer[y, x] = new Pixel(c, foregroundColor);
             }
         }
 
@@ -59,25 +59,7 @@ namespace ConsolePlot.Drawing
             {
                 throw new ArgumentOutOfRangeException(nameof(x), "Coordinates are out of bounds.");
             }
-            return _buffer[y, x];
-        }
-
-        /// <summary>
-        /// Renders the image to the console.
-        /// </summary>
-        public void Render()
-        {
-            for (int y = Height - 1; y >= 0; y--)
-            {
-                for (int x = 0; x < Width; x++)
-                {
-                    var pixel = _buffer[y, x];
-                    Console.ForegroundColor = pixel.ForegroundColor;
-                    Console.Write(pixel.Character);
-                }
-                Console.WriteLine();
-            }
-            Console.ResetColor();
-        }
+            return buffer[y, x];
+        }        
     }
 }

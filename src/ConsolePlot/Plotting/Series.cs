@@ -39,8 +39,9 @@ namespace ConsolePlot.Plotting
 
             if (Xs.Count != Ys.Count)
                 throw new ArgumentException("X and Y collections must have the same length.");
-
-            Pen = pen ?? throw new ArgumentNullException(nameof(pen));
+            if (pen.Equals(default(PointPen)))
+                throw new ArgumentException("Pen cannot be null.", nameof(pen));
+            Pen = pen;
         }
     }
 }

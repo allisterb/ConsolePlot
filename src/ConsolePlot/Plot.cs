@@ -12,21 +12,7 @@ namespace ConsolePlot
     /// </summary>
     public class Plot
     {
-        private static readonly ConsoleColor[] AvailableColors =
-        {
-            ConsoleColor.Blue,
-            ConsoleColor.Green,
-            ConsoleColor.Cyan,
-            ConsoleColor.Red,
-            ConsoleColor.Magenta,
-            ConsoleColor.Yellow,
-            ConsoleColor.DarkBlue,
-            ConsoleColor.DarkGreen,
-            ConsoleColor.DarkCyan,
-            ConsoleColor.DarkRed,
-            ConsoleColor.DarkMagenta,
-            ConsoleColor.DarkYellow
-        };
+        
         private readonly ConsoleImage _image;
         private readonly PlotSettings _settings;
 
@@ -78,18 +64,18 @@ namespace ConsolePlot
         public Series AddSeries(
             IReadOnlyCollection<double> xs,
             IReadOnlyCollection<double> ys,
-            PointPen pen = null)
+            PointPen pen = default)
         {
             if (xs.Count != ys.Count)
             {
                 throw new ArgumentException("X and Y collections must have the same length.");
             }
 
-            if (pen == null)
+            if (pen.Equals(default(PointPen)))
                 pen = new PointPen(_settings.DefaultGraphBrush ?? SystemPointBrushes.Braille, GetNextAvailableColor());
 
             var series = new Series(xs, ys, pen);
-            Series.Add(new Series(xs, ys, pen));
+            Series.Add(series);
             return series;
         }
 
@@ -114,11 +100,45 @@ namespace ConsolePlot
         /// <summary>
         /// Renders the plot on the console.
         /// </summary>
-        public void Render() => _image.Render();
+       
+        public virtual void Render()
+        {
+            for (int y = _image.Height - 1; y >= 0; y--)
+            {
+                for (int x = 0; x < _image.Width; x++)
+                {
+                    var pixel = _image.buffer[y, x];
+                    Console.ForegroundColor = GetNearestConsoleColor(pixel.ForegroundColor);
+                    Console.Write(pixel.Character);
+                }
+                Console.WriteLine();
+            }
+            Console.ResetColor();
+        }
+        
+        public static readonly ConsoleColor[] AvailableColors = new ConsoleColor[]
+        {
+            ConsoleColor.Black,
+            ConsoleColor.DarkBlue,
+            ConsoleColor.DarkGreen,
+            ConsoleColor.DarkCyan,
+            ConsoleColor.DarkRed,
+            ConsoleColor.DarkMagenta,
+            ConsoleColor.DarkYellow,
+            ConsoleColor.Gray,
+            ConsoleColor.DarkGray,
+            ConsoleColor.Blue,
+            ConsoleColor.Green,
+            ConsoleColor.Cyan,
+            ConsoleColor.Red,
+            ConsoleColor.Magenta,
+            ConsoleColor.Yellow,
+            ConsoleColor.White
+        };
 
         private ConsoleColor GetNextAvailableColor()
         {
-            var usedColors = new HashSet<ConsoleColor>();
+            var usedColors = new HashSet<ConsoleGUI.Data.Color>();
 
             // Include colors of existing series
             usedColors.UnionWith(Series.Select(s => s.Pen.Color));
@@ -137,6 +157,23 @@ namespace ConsolePlot
 
             // Return the first available color
             return AvailableColors.First(c => !usedColors.Contains(c));
+        }
+
+        public static ConsoleColor GetNearestConsoleColor(ConsoleGUI.Data.Color color)
+        {
+            if (Math.Max(Math.Max(color.Red, color.Green), color.Blue) - Math.Min(Math.Min(color.Red, color.Green), color.Blue) < 32)
+            {
+                int brightness = ((int)color.Red + (int)color.Green + (int)color.Blue) / 3;
+                if (brightness < 64) return ConsoleColor.Black;
+                if (brightness < 160) return ConsoleColor.DarkGray;
+                if (brightness < 224) return ConsoleColor.Gray;
+                return ConsoleColor.White;
+            }
+            int index = (color.Red > 128 | color.Green > 128 | color.Blue > 128) ? 8 : 0;
+            index |= (color.Red > 64) ? 4 : 0;
+            index |= (color.Green > 64) ? 2 : 0;
+            index |= (color.Blue > 64) ? 1 : 0;
+            return (ConsoleColor)index;
         }
     }
 }
