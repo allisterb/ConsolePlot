@@ -136,6 +136,41 @@ namespace ConsolePlot
         }
 
         /// <summary>
+        /// Adds an OHLC candlestick series: each point drawn as a candle (high/low wick + open/close body), coloured
+        /// by direction (close ≥ open uses <paramref name="upColor"/>, else <paramref name="downColor"/>).
+        /// </summary>
+        public CandleSeries AddCandles(
+            IReadOnlyCollection<double> xs,
+            IReadOnlyCollection<double> opens,
+            IReadOnlyCollection<double> highs,
+            IReadOnlyCollection<double> lows,
+            IReadOnlyCollection<double> closes,
+            ConsoleGUI.Data.Color upColor,
+            ConsoleGUI.Data.Color downColor)
+        {
+            var candles = new CandleSeries(xs, opens, highs, lows, closes, upColor, downColor);
+            Elements.Add(candles);
+            return candles;
+        }
+
+        /// <summary>
+        /// Adds a text annotation anchored to the data point (<paramref name="x"/>, <paramref name="y"/>). Does not
+        /// affect the plot's data bounds.
+        /// </summary>
+        public PointLabel AddLabel(
+            double x, double y, string text,
+            ConsoleGUI.Data.Color foreground,
+            ConsoleGUI.Data.Color? background = null,
+            LabelAlignment alignment = LabelAlignment.Center,
+            int offsetX = 0,
+            int offsetY = 1)
+        {
+            var label = new PointLabel(x, y, text, foreground, background, alignment, offsetX, offsetY);
+            Elements.Add(label);
+            return label;
+        }
+
+        /// <summary>
         /// Draws the plot on the console image.
         /// </summary>
         public void Draw()

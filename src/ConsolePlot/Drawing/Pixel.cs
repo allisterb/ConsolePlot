@@ -18,14 +18,21 @@ namespace ConsolePlot.Drawing
         public ConsoleGUI.Data.Color ForegroundColor { get; }
 
         /// <summary>
+        /// Gets the background color of the pixel, or <see langword="null"/> for a transparent background.
+        /// </summary>
+        public ConsoleGUI.Data.Color? BackgroundColor { get; }
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="Pixel"/> struct.
         /// </summary>
         /// <param name="character">The character of the pixel.</param>
         /// <param name="foregroundColor">The foreground color of the pixel.</param>
-        public Pixel(char character, ConsoleGUI.Data.Color foregroundColor)
+        /// <param name="backgroundColor">The background color of the pixel, or <see langword="null"/> for transparent.</param>
+        public Pixel(char character, ConsoleGUI.Data.Color foregroundColor, ConsoleGUI.Data.Color? backgroundColor = null)
         {
             Character = character;
             ForegroundColor = foregroundColor;
+            BackgroundColor = backgroundColor;
         }
     }
 }

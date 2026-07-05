@@ -76,14 +76,28 @@ namespace ConsolePlot.Plotting
         public void DrawBars(ConsoleGUI.Data.Color color, IReadOnlyList<double> xs, IReadOnlyList<double> ys, double baseline, double widthFraction)
         {
             int baseRow = ConvertY(baseline);
-            int half = BarHalfWidth(xs, widthFraction);
-            for (int i = 0; i < xs.Count; i++)
+            int n = xs.Count;
+            for (int i = 0; i < n; i++)
             {
-                if (double.IsNaN(xs[i]) || double.IsNaN(ys[i]) || double.IsInfinity(xs[i]) || double.IsInfinity(ys[i]))
+                if (!IsFinite(xs[i]) || !IsFinite(ys[i]))
                     continue;
-                int xc = ConvertX(xs[i]);
+
+                // Each bar owns a slot bounded by the midpoints to its neighbours (fractional pixels). The drawn bar
+                // is that slot scaled by widthFraction and centred; using half-open [start, end) column ranges makes
+                // full-width (fraction 1) bars tile exactly — no gaps or overlaps as the plot is resized. Edge bars
+                // mirror their one neighbour's gap; a lone bar uses a small default.
+                double cx = _converter.ConvertX(xs[i]);
+                double? prev = i > 0 && IsFinite(xs[i - 1]) ? _converter.ConvertX(xs[i - 1]) : (double?)null;
+                double? next = i < n - 1 && IsFinite(xs[i + 1]) ? _converter.ConvertX(xs[i + 1]) : (double?)null;
+                double leftGap = prev.HasValue ? cx - prev.Value : (next.HasValue ? next.Value - cx : DefaultBarGap);
+                double rightGap = next.HasValue ? next.Value - cx : (prev.HasValue ? cx - prev.Value : DefaultBarGap);
+
+                int colStart = (int)Math.Round(cx - leftGap / 2 * widthFraction);
+                int colEnd = (int)Math.Round(cx + rightGap / 2 * widthFraction);   // exclusive
+                if (colEnd <= colStart) colEnd = colStart + 1;                      // always at least one column
+
                 double topExact = _converter.ConvertY(ys[i]);
-                for (int col = xc - half; col <= xc + half; col++)
+                for (int col = colStart; col < colEnd; col++)
                     FillColumn(col, baseRow, topExact, color);
             }
         }
@@ -109,20 +123,82 @@ namespace ConsolePlot.Plotting
         private void Cell(int col, int row, char ch, ConsoleGUI.Data.Color color) =>
             _graphics.DrawPoint(new ConsolePointPen(new ConsolePointBrush(ch), color), col, row);
 
-        // Bar half-width in cells: a fraction of the smallest gap between adjacent bar positions (a lone bar gets a
-        // small default), so bars fill their slot without overlapping neighbours.
-        private int BarHalfWidth(IReadOnlyList<double> xs, double widthFraction)
+        /// <summary>
+        /// Draws OHLC candlesticks (one column each): a thin high/low wick with a thick open/close body, using
+        /// half-cell box glyphs for sub-cell precision. Each candle is coloured by direction (close ≥ open ? up : down).
+        /// </summary>
+        public void DrawCandles(
+            IReadOnlyList<double> xs, IReadOnlyList<double> opens, IReadOnlyList<double> highs,
+            IReadOnlyList<double> lows, IReadOnlyList<double> closes,
+            ConsoleGUI.Data.Color upColor, ConsoleGUI.Data.Color downColor)
         {
-            int gap = int.MaxValue;
-            for (int i = 1; i < xs.Count; i++)
+            for (int i = 0; i < xs.Count; i++)
             {
-                if (double.IsNaN(xs[i]) || double.IsNaN(xs[i - 1])) continue;
-                int g = Math.Abs(ConvertX(xs[i]) - ConvertX(xs[i - 1]));
-                if (g > 0 && g < gap) gap = g;
+                if (!IsFinite(xs[i]) || !IsFinite(opens[i]) || !IsFinite(highs[i]) || !IsFinite(lows[i]) || !IsFinite(closes[i]))
+                    continue;
+
+                int col = ConvertX(xs[i]);
+                double o = opens[i], c = closes[i];
+                double ts = _converter.ConvertY(highs[i]);          // high  (top of wick)
+                double tc = _converter.ConvertY(Math.Max(o, c));    // body top
+                double bc = _converter.ConvertY(Math.Min(o, c));    // body bottom
+                double bs = _converter.ConvertY(lows[i]);           // low   (bottom of wick)
+                var color = c >= o ? upColor : downColor;
+
+                for (int r = (int)Math.Floor(bs); r <= (int)Math.Ceiling(ts); r++)
+                {
+                    char glyph = CandleGlyph(r, ts, tc, bc, bs);
+                    if (glyph != ' ') Cell(col, r, glyph, color);
+                }
             }
-            if (gap == int.MaxValue) gap = 3;
-            int w = Math.Max(1, (int)(gap * widthFraction));
-            return (w - 1) / 2;
+        }
+
+        // Ported from termgraph's CandleStickGraph._render_candle_at: pick the half-cell box glyph for pixel row `hu`
+        // from where the candle's high (ts), body top (tc), body bottom (bc) and low (bs) — all fractional pixel rows
+        // — fall relative to the cell. Wick glyphs │╷╵, body glyphs ┃╽╿╻╹. Both this and PlotImage's flip end with
+        // high-at-top, so the direct port renders right-side-up.
+        private static char CandleGlyph(int hu, double ts, double tc, double bc, double bs)
+        {
+            if (Math.Ceiling(ts) >= hu && hu >= Math.Floor(tc))     // upper region: body top → high (wick above body)
+            {
+                if (tc - hu > 0.75) return '┃';
+                if (tc - hu > 0.25) return ts - hu > 0.75 ? '╽' : '╻';
+                if (ts - hu > 0.75) return '│';
+                if (ts - hu > 0.25) return '╷';
+                return ' ';
+            }
+            if (Math.Floor(tc) >= hu && hu >= Math.Ceiling(bc))     // body
+                return '┃';
+            if (Math.Ceiling(bc) >= hu && hu >= Math.Floor(bs))     // lower region: low → body bottom (wick below body)
+            {
+                if (bc - hu < 0.25) return '┃';
+                if (bc - hu < 0.75) return bs - hu < 0.25 ? '╿' : '╹';
+                if (bs - hu < 0.25) return '│';
+                if (bs - hu < 0.75) return '╵';
+                return ' ';
+            }
+            return ' ';
+        }
+
+        // The slot width (in cells) used for a bar that has no neighbours to measure a gap from.
+        private const double DefaultBarGap = 3.0;
+
+        private static bool IsFinite(double v) => !double.IsNaN(v) && !double.IsInfinity(v);
+
+        /// <summary>Draws a text label anchored to the data point (<paramref name="x"/>, <paramref name="y"/>).</summary>
+        public void DrawLabel(double x, double y, string text, ConsoleGUI.Data.Color fg, ConsoleGUI.Data.Color? bg, LabelAlignment alignment, int offsetX, int offsetY)
+        {
+            if (string.IsNullOrEmpty(text)) return;
+
+            int col = ConvertX(x) + offsetX;
+            int row = ConvertY(y) + offsetY;   // image y increases upward, so +offsetY places the label above the point
+            int start = alignment switch
+            {
+                LabelAlignment.Center => col - text.Length / 2,
+                LabelAlignment.Right => col - text.Length + 1,
+                _ => col,
+            };
+            _graphics.DrawText(text, fg, bg, start, row);
         }
 
         public void DrawVertical(LinePen pen, double x) =>

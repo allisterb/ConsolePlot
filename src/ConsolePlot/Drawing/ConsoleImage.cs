@@ -38,11 +38,12 @@ namespace ConsolePlot.Drawing
         /// <param name="y">The y-coordinate of the pixel.</param>
         /// <param name="c">The character to set.</param>
         /// <param name="foregroundColor">The foreground color of the pixel.</param>
-        public void SetPixel(int x, int y, char c, ConsoleGUI.Data.Color foregroundColor)
+        /// <param name="backgroundColor">The background color of the pixel, or <see langword="null"/> for transparent.</param>
+        public void SetPixel(int x, int y, char c, ConsoleGUI.Data.Color foregroundColor, ConsoleGUI.Data.Color? backgroundColor = null)
         {
             if (x >= 0 && x < Width && y >= 0 && y < Height)
             {
-                buffer[y, x] = new Pixel(c, foregroundColor);
+                buffer[y, x] = new Pixel(c, foregroundColor, backgroundColor);
             }
         }
 

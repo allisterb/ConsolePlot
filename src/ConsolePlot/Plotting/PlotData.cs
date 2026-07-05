@@ -124,7 +124,25 @@ namespace ConsolePlot.Plotting
                 bounds = Bounds.Union(bounds, element.GetDataBounds());
 
             // No finite data anywhere: fall back to a unit box so tick/area math stays well-defined.
-            return bounds ?? new Bounds(0, 1, 0, 1);
+            bounds ??= new Bounds(0, 1, 0, 1);
+            return Pad(bounds);
+        }
+
+        // A zero-width or zero-height data range (a single point, or a flat/constant series) collapses the tick math
+        // (NiceNumber(0) yields a zero tick step, and GenerateTicks would then build an invalid range). Pad any
+        // degenerate axis to a finite range around its value so the plot is always well-defined and Draw never throws.
+        private static Bounds Pad(Bounds b)
+        {
+            double xMin = b.XMin, xMax = b.XMax, yMin = b.YMin, yMax = b.YMax;
+            if (xMax <= xMin) { double p = PadAmount(xMin); xMin -= p; xMax += p; }
+            if (yMax <= yMin) { double p = PadAmount(yMin); yMin -= p; yMax += p; }
+            return new Bounds(xMin, xMax, yMin, yMax);
+        }
+
+        private static double PadAmount(double value)
+        {
+            double magnitude = Math.Abs(value);
+            return magnitude > 0 ? magnitude * 0.5 : 0.5;
         }
 
         private static double CalculateTickStep(double min, double max, int desiredStep, int size)

@@ -155,6 +155,34 @@ namespace ConsolePlot.Drawing
         }
 
         /// <summary>
+        /// Draws a string with a full-colour foreground and an optional background, one cell per character. Unlike
+        /// <see cref="DrawString"/> (16-colour foreground only), this carries RGB colours and a per-cell background —
+        /// used for point annotations. Cells outside the clip bounds are skipped.
+        /// </summary>
+        /// <param name="s">The text to draw.</param>
+        /// <param name="foreground">The foreground colour.</param>
+        /// <param name="background">The background colour, or <see langword="null"/> for transparent.</param>
+        /// <param name="x">The x-coordinate of the first character.</param>
+        /// <param name="y">The y-coordinate of the text.</param>
+        /// <param name="direction">The direction the text runs.</param>
+        public void DrawText(
+            string s,
+            ConsoleGUI.Data.Color foreground,
+            ConsoleGUI.Data.Color? background,
+            int x,
+            int y,
+            TextDirection direction = TextDirection.Horizontal)
+        {
+            for (var i = 0; i < s.Length; i++)
+            {
+                var currentX = direction == TextDirection.Horizontal ? x + i : x;
+                var currentY = direction == TextDirection.Horizontal ? y : y - i;
+                if (ClipBounds.Contains(currentX, currentY))
+                    Image.SetPixel(currentX, currentY, s[i], foreground, background);
+            }
+        }
+
+        /// <summary>
         /// Draws a vertical line between two y-coordinates at the specified x-coordinate.
         /// </summary>
         /// <param name="pen"><see cref="LinePen" /> that determines the color and style of the line.</param>
