@@ -154,6 +154,43 @@ namespace ConsolePlot
         }
 
         /// <summary>
+        /// Adds a box-and-whisker series: each entry is a Q1–Q3 box with a median line and whiskers to min/max.
+        /// Callers supply the five-number summary per box.
+        /// </summary>
+        public BoxSeries AddBox(
+            IReadOnlyCollection<double> xs,
+            IReadOnlyCollection<double> mins,
+            IReadOnlyCollection<double> q1s,
+            IReadOnlyCollection<double> medians,
+            IReadOnlyCollection<double> q3s,
+            IReadOnlyCollection<double> maxes,
+            ConsoleGUI.Data.Color boxColor,
+            ConsoleGUI.Data.Color medianColor,
+            double widthFraction = 0.6)
+        {
+            var box = new BoxSeries(xs, mins, q1s, medians, q3s, maxes, boxColor, medianColor, widthFraction);
+            Elements.Add(box);
+            return box;
+        }
+
+        /// <summary>
+        /// Adds a vertical error-bar series: each point (x, y) drawn as a whisker from <c>y − errLow</c> to
+        /// <c>y + errHigh</c> with caps and a centre marker.
+        /// </summary>
+        public ErrorBarSeries AddErrorBars(
+            IReadOnlyCollection<double> xs,
+            IReadOnlyCollection<double> ys,
+            IReadOnlyCollection<double> errLows,
+            IReadOnlyCollection<double> errHighs,
+            ConsoleGUI.Data.Color color,
+            int capRadius = 1)
+        {
+            var bars = new ErrorBarSeries(xs, ys, errLows, errHighs, color, capRadius);
+            Elements.Add(bars);
+            return bars;
+        }
+
+        /// <summary>
         /// Adds a text annotation anchored to the data point (<paramref name="x"/>, <paramref name="y"/>). Does not
         /// affect the plot's data bounds.
         /// </summary>
