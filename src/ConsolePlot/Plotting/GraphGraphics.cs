@@ -13,8 +13,11 @@ namespace ConsolePlot.Plotting
         private readonly ConsoleGraphics _graphics;
         private readonly CoordinateConverter _converter;
 
-        // Bottom-anchored partial-fill glyphs 1/8..8/8 (index 1..8), for a bar's fractional top cell.
+        // Bottom-anchored partial-fill glyphs 1/8..8/8 (index 1..8), for a vertical bar's fractional top cell.
         private static readonly char[] EighthUp = { ' ', '▁', '▂', '▃', '▄', '▅', '▆', '▇', '█' };
+
+        // Left-anchored partial-fill glyphs 1/8..8/8 (index 1..8), for a horizontal bar's fractional right cell.
+        private static readonly char[] EighthRight = { ' ', '▏', '▎', '▍', '▌', '▋', '▊', '▉', '█' };
 
         public GraphGraphics(ConsoleGraphics graphics, CoordinateConverter converter)
         {
@@ -93,23 +96,185 @@ namespace ConsolePlot.Plotting
             }
         }
 
-        // The half-open [colStart, colEnd) column range one slotted element (bar/box) occupies at index i. Each
-        // element owns a slot bounded by the midpoints to its neighbours (fractional pixels); the drawn extent is
-        // that slot scaled by widthFraction and centred. Half-open ranges make full-width (fraction 1) elements
-        // tile exactly — no gaps or overlaps as the plot is resized. Edge elements mirror their one neighbour's gap;
-        // a lone element uses a small default.
-        private (int colStart, int colEnd) SlotColumns(int i, IReadOnlyList<double> xs, int n, double widthFraction)
+        /// <summary>
+        /// Draws grouped (side-by-side) vertical bars: at each x the slot is split into one sub-bar per series, so
+        /// <paramref name="seriesValues"/>[j] is drawn in the j-th sub-slot coloured <paramref name="colors"/>[j].
+        /// </summary>
+        public void DrawGroupedBars(
+            IReadOnlyList<ConsoleGUI.Data.Color> colors, IReadOnlyList<double> xs,
+            IReadOnlyList<IReadOnlyList<double>> seriesValues, double baseline, double widthFraction)
         {
-            double cx = _converter.ConvertX(xs[i]);
-            double? prev = i > 0 && IsFinite(xs[i - 1]) ? _converter.ConvertX(xs[i - 1]) : (double?)null;
-            double? next = i < n - 1 && IsFinite(xs[i + 1]) ? _converter.ConvertX(xs[i + 1]) : (double?)null;
-            double leftGap = prev.HasValue ? cx - prev.Value : (next.HasValue ? next.Value - cx : DefaultBarGap);
-            double rightGap = next.HasValue ? next.Value - cx : (prev.HasValue ? cx - prev.Value : DefaultBarGap);
+            int baseRow = ConvertY(baseline);
+            int n = xs.Count, k = seriesValues.Count;
+            for (int i = 0; i < n; i++)
+            {
+                if (!IsFinite(xs[i])) continue;
+                var (colStart, colEnd) = SlotColumns(i, xs, n, widthFraction);
+                int slotW = colEnd - colStart;
+                for (int j = 0; j < k; j++)
+                {
+                    if (i >= seriesValues[j].Count || !IsFinite(seriesValues[j][i])) continue;
+                    // Sub-slot j of k, split by rounding so the k sub-bars tile the slot exactly.
+                    int subStart = colStart + (int)Math.Round((double)slotW * j / k);
+                    int subEnd = colStart + (int)Math.Round((double)slotW * (j + 1) / k);
+                    if (subEnd <= subStart) subEnd = subStart + 1;
+                    double topExact = _converter.ConvertY(seriesValues[j][i]);
+                    for (int col = subStart; col < subEnd; col++)
+                        FillColumn(col, baseRow, topExact, colors[j]);
+                }
+            }
+        }
 
-            int colStart = (int)Math.Round(cx - leftGap / 2 * widthFraction);
-            int colEnd = (int)Math.Round(cx + rightGap / 2 * widthFraction);   // exclusive
-            if (colEnd <= colStart) colEnd = colStart + 1;                      // always at least one column
-            return (colStart, colEnd);
+        /// <summary>
+        /// Draws stacked vertical bars: at each x the series are stacked from <paramref name="baseline"/>, each
+        /// segment filling the full slot width in <paramref name="colors"/>[j]. Segments are full cells between
+        /// rounded cumulative boundaries so they abut exactly (no sub-cell tops, which wouldn't align across a stack).
+        /// </summary>
+        public void DrawStackedBars(
+            IReadOnlyList<ConsoleGUI.Data.Color> colors, IReadOnlyList<double> xs,
+            IReadOnlyList<IReadOnlyList<double>> seriesValues, double baseline, double widthFraction)
+        {
+            int n = xs.Count, k = seriesValues.Count;
+            for (int i = 0; i < n; i++)
+            {
+                if (!IsFinite(xs[i])) continue;
+                var (colStart, colEnd) = SlotColumns(i, xs, n, widthFraction);
+
+                double cumulative = baseline;
+                int prevRow = ConvertY(baseline);
+                for (int j = 0; j < k; j++)
+                {
+                    if (i >= seriesValues[j].Count || !IsFinite(seriesValues[j][i])) continue;
+                    cumulative += seriesValues[j][i];
+                    int thisRow = ConvertY(cumulative);
+                    int lo = Math.Min(prevRow, thisRow), hi = Math.Max(prevRow, thisRow);
+                    for (int col = colStart; col < colEnd; col++)
+                        for (int r = lo; r <= hi; r++) SolidCell(col, r, colors[j]);
+                    prevRow = thisRow;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Draws filled horizontal bars from <paramref name="baseline"/> to each value: positions are on the Y axis
+        /// (each bar owns a row slot) and the value extends along X, with a left-anchored eighth-block for the
+        /// fractional right cell.
+        /// </summary>
+        public void DrawHBars(ConsoleGUI.Data.Color color, IReadOnlyList<double> ys, IReadOnlyList<double> values, double baseline, double widthFraction)
+        {
+            int baseCol = ConvertX(baseline);
+            int n = ys.Count;
+            for (int i = 0; i < n; i++)
+            {
+                if (!IsFinite(ys[i]) || !IsFinite(values[i])) continue;
+                var (rowStart, rowEnd) = SlotRows(i, ys, n, widthFraction);
+                double rightExact = _converter.ConvertX(values[i]);
+                for (int row = rowStart; row < rowEnd; row++)
+                    FillRow(row, baseCol, rightExact, color);
+            }
+        }
+
+        /// <summary>
+        /// Draws a heatmap: a grid of <paramref name="values"/> (rows × cols, row 0 at the top) tiled over the
+        /// data rectangle [<paramref name="xMin"/>..<paramref name="xMax"/>] × [<paramref name="yMin"/>..
+        /// <paramref name="yMax"/>], each cell filled with the colour from <paramref name="colorMap"/> for its value
+        /// normalised into [<paramref name="vmin"/>, <paramref name="vmax"/>]. NaN/∞ cells are left blank.
+        /// </summary>
+        public void DrawHeat(
+            IReadOnlyList<IReadOnlyList<double>> values, double xMin, double xMax, double yMin, double yMax,
+            double vmin, double vmax, Func<double, ConsoleGUI.Data.Color> colorMap, Func<double, string> cellText = null)
+        {
+            int rows = values.Count;
+            if (rows == 0) return;
+            int cols = values[0].Count;
+            if (cols == 0) return;
+
+            double range = vmax - vmin;
+            double dx = (xMax - xMin) / cols;
+            double dy = (yMax - yMin) / rows;
+
+            for (int r = 0; r < rows; r++)
+            {
+                var rowVals = values[r];
+                // Row 0 is the top of the grid, so it maps to the data-y band just below yMax. Image y increases
+                // upward, so the band's higher data-y (yMax − r·dy) is the higher pixel row.
+                int rowTop = ConvertY(yMax - r * dy);
+                int rowBot = ConvertY(yMax - (r + 1) * dy);
+                if (rowTop < rowBot) (rowTop, rowBot) = (rowBot, rowTop);
+                if (rowTop <= rowBot) rowTop = rowBot + 1;
+
+                for (int c = 0; c < cols && c < rowVals.Count; c++)
+                {
+                    double v = rowVals[c];
+                    if (!IsFinite(v)) continue;
+
+                    // Edges rounded consistently so adjacent cells share a boundary and tile without gaps.
+                    int colL = ConvertX(xMin + c * dx);
+                    int colR = ConvertX(xMin + (c + 1) * dx);
+                    if (colR <= colL) colR = colL + 1;
+
+                    double t = range > 0 ? (v - vmin) / range : 0.5;
+                    var color = colorMap(Math.Clamp(t, 0.0, 1.0));
+                    for (int col = colL; col < colR; col++)
+                        for (int row = rowBot; row < rowTop; row++)
+                            SolidCell(col, row, color);
+
+                    // Optional value text, centred in the cell with a contrasting colour on the cell's own colour
+                    // as background (change B), drawn only when it fits the cell width.
+                    if (cellText != null)
+                    {
+                        string label = cellText(v);
+                        int cellW = colR - colL;
+                        if (!string.IsNullOrEmpty(label) && label.Length <= cellW)
+                        {
+                            int startCol = colL + (cellW - label.Length) / 2;
+                            int midRow = (rowBot + rowTop - 1) / 2;
+                            _graphics.DrawText(label, ContrastText(color), color, startCol, midRow);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Readable text colour for a filled cell: dark on light backgrounds, light on dark, by perceived luminance.
+        private static ConsoleGUI.Data.Color ContrastText(ConsoleGUI.Data.Color bg)
+        {
+            double luminance = 0.299 * bg.Red + 0.587 * bg.Green + 0.114 * bg.Blue;
+            return luminance > 140 ? new ConsoleGUI.Data.Color(20, 20, 20) : new ConsoleGUI.Data.Color(240, 240, 240);
+        }
+
+        // The half-open [colStart, colEnd) column range one slotted element (bar/box) occupies at index i along the
+        // X axis. See SlotRange for the slot math.
+        private (int colStart, int colEnd) SlotColumns(int i, IReadOnlyList<double> xs, int n, double widthFraction) =>
+            SlotRange(
+                _converter.ConvertX(xs[i]),
+                i > 0 && IsFinite(xs[i - 1]) ? _converter.ConvertX(xs[i - 1]) : (double?)null,
+                i < n - 1 && IsFinite(xs[i + 1]) ? _converter.ConvertX(xs[i + 1]) : (double?)null,
+                widthFraction);
+
+        // The half-open [rowStart, rowEnd) row range a slotted element occupies at index i along the Y axis (for
+        // horizontal bars).
+        private (int rowStart, int rowEnd) SlotRows(int i, IReadOnlyList<double> ys, int n, double widthFraction) =>
+            SlotRange(
+                _converter.ConvertY(ys[i]),
+                i > 0 && IsFinite(ys[i - 1]) ? _converter.ConvertY(ys[i - 1]) : (double?)null,
+                i < n - 1 && IsFinite(ys[i + 1]) ? _converter.ConvertY(ys[i + 1]) : (double?)null,
+                widthFraction);
+
+        // The half-open [start, end) cell range one slotted element occupies around fractional pixel position
+        // `center`. The element owns a slot bounded by the midpoints to its neighbours; the drawn extent is that slot
+        // scaled by widthFraction and centred. Half-open ranges make full-width (fraction 1) elements tile exactly —
+        // no gaps or overlaps as the plot is resized. Edge elements mirror their one neighbour's gap; a lone element
+        // uses a small default.
+        private static (int start, int end) SlotRange(double center, double? prev, double? next, double widthFraction)
+        {
+            double leftGap = prev.HasValue ? center - prev.Value : (next.HasValue ? next.Value - center : DefaultBarGap);
+            double rightGap = next.HasValue ? next.Value - center : (prev.HasValue ? center - prev.Value : DefaultBarGap);
+
+            int start = (int)Math.Round(center - leftGap / 2 * widthFraction);
+            int end = (int)Math.Round(center + rightGap / 2 * widthFraction);   // exclusive
+            if (end <= start) end = start + 1;                                   // always at least one cell
+            return (start, end);
         }
 
         /// <summary>
@@ -231,18 +396,45 @@ namespace ConsolePlot.Plotting
             int topRow = (int)Math.Floor(topExact);
             if (topRow >= baseRow)
             {
-                for (int r = baseRow; r < topRow; r++) Cell(col, r, '█', color);
+                // Full interior cells are solid (fg == bg, no banding); the fractional top keeps a transparent
+                // background so the eighth-block glyph shows the empty part above the fill.
+                for (int r = baseRow; r < topRow; r++) SolidCell(col, r, color);
                 double frac = topExact - topRow;
                 if (frac > 0.05) Cell(col, topRow, EighthUp[Math.Clamp((int)Math.Ceiling(frac * 8), 1, 8)], color);
             }
             else
             {
-                for (int r = (int)Math.Ceiling(topExact); r <= baseRow; r++) Cell(col, r, '█', color);
+                for (int r = (int)Math.Ceiling(topExact); r <= baseRow; r++) SolidCell(col, r, color);
+            }
+        }
+
+        // Fill one horizontal-bar row. X is not flipped, so a rightward bar (value right of the baseline) fills full
+        // cells then a left-anchored eighth-block for the fractional right cell. A leftward bar fills full cells only.
+        private void FillRow(int row, int baseCol, double rightExact, ConsoleGUI.Data.Color color)
+        {
+            int rightCol = (int)Math.Floor(rightExact);
+            if (rightCol >= baseCol)
+            {
+                // Full interior cells are solid; the fractional right cell keeps a transparent background so the
+                // left-anchored eighth-block shows the empty part to its right.
+                for (int c = baseCol; c < rightCol; c++) SolidCell(c, row, color);
+                double frac = rightExact - rightCol;
+                if (frac > 0.05) Cell(rightCol, row, EighthRight[Math.Clamp((int)Math.Ceiling(frac * 8), 1, 8)], color);
+            }
+            else
+            {
+                for (int c = (int)Math.Ceiling(rightExact); c <= baseCol; c++) SolidCell(c, row, color);
             }
         }
 
         private void Cell(int col, int row, char ch, ConsoleGUI.Data.Color color) =>
             _graphics.DrawPoint(new ConsolePointPen(new ConsolePointBrush(ch), color), col, row);
+
+        // A fully solid coloured cell: the block glyph in the colour AND the same colour as the cell background, so
+        // any sub-glyph gap the terminal font leaves between rows is filled with the same colour (no banding) — used
+        // for heatmap cells. "█" is an interned literal, so this doesn't allocate per call.
+        private void SolidCell(int col, int row, ConsoleGUI.Data.Color color) =>
+            _graphics.DrawText("█", color, color, col, row);
 
         /// <summary>
         /// Draws OHLC candlesticks (one column each): a thin high/low wick with a thick open/close body, using

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using ConsolePlot.Drawing.Tools;
 
 namespace ConsolePlot.Plotting
@@ -8,6 +9,16 @@ namespace ConsolePlot.Plotting
     /// </summary>
     public class TickSettings
     {
+        /// <summary>
+        /// Explicit horizontal-axis ticks (value + label). When set, they are used verbatim instead of the
+        /// auto-generated numeric ticks, and the data bounds are left unadjusted — for categorical axes such as a
+        /// confusion matrix's class names. <see langword="null"/>/empty means auto.
+        /// </summary>
+        public IReadOnlyList<(double Value, string Label)> CustomXTicks { get; set; }
+
+        /// <summary>Explicit vertical-axis ticks; see <see cref="CustomXTicks"/>.</summary>
+        public IReadOnlyList<(double Value, string Label)> CustomYTicks { get; set; }
+
         /// <summary>
         /// Gets or sets a value indicating whether ticks are visible.
         /// </summary>

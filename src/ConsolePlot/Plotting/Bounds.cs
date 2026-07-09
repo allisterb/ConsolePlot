@@ -42,6 +42,10 @@ namespace ConsolePlot.Plotting
         public Bounds IncludeY(double y) =>
             new Bounds(XMin, XMax, System.Math.Min(YMin, y), System.Math.Max(YMax, y));
 
+        /// <summary>Extends the bounds horizontally to include <paramref name="x"/> (e.g. a horizontal-bar baseline).</summary>
+        public Bounds IncludeX(double x) =>
+            new Bounds(System.Math.Min(XMin, x), System.Math.Max(XMax, x), YMin, YMax);
+
         /// <summary>The smallest bounds enclosing both <paramref name="a"/> and <paramref name="b"/> (either may be null).</summary>
         public static Bounds Union(Bounds a, Bounds b)
         {

@@ -72,10 +72,23 @@ namespace ConsolePlot.Plotting
                 return new PlotData(initialBounds, new Rectangle(0, 0, width, height), new List<Tick>(), new List<Tick>(), new Point(0, 0), elements);
             }
 
-            var (adjustedYBounds, yTicks) = CalculateAdjustedBoundsAndTicks(settings, initialBounds.YMin,
-                initialBounds.YMax, settings.Ticks.DesiredYStep, height, CalculateXTickLabelSize());
-            var (adjustedXBounds, xTicks) = CalculateAdjustedBoundsAndTicks(settings, initialBounds.XMin,
-                initialBounds.XMax, settings.Ticks.DesiredXStep, width, CalculateYTickLabelSize(yTicks));
+            // Per axis, in priority order: explicit (categorical) ticks (used verbatim, element bounds kept) →
+            // a fixed/pinned range (used verbatim, ticks generated within it) → auto (nice-number bounds + ticks).
+            // Only the auto path runs the bounds adjustment; the other two keep the axis stable for live updates.
+            var (adjustedYBounds, yTicks) = settings.Ticks.CustomYTicks is { Count: > 0 } customY
+                ? ((min: initialBounds.YMin, max: initialBounds.YMax), ToTicks(customY))
+                : settings.FixedYRange is { } fixedY
+                    ? FixedAxis(settings, fixedY.Min, fixedY.Max, settings.Ticks.DesiredYStep, height)
+                    : CalculateAdjustedBoundsAndTicks(settings, initialBounds.YMin,
+                        initialBounds.YMax, settings.Ticks.DesiredYStep, height, CalculateXTickLabelSize());
+            var (adjustedXBounds, xTicks) = settings.Ticks.CustomXTicks is { Count: > 0 } customX
+                ? ((min: initialBounds.XMin, max: initialBounds.XMax), ToTicks(customX))
+                : settings.FixedXRange is { } fixedX
+                    ? FixedAxis(settings, fixedX.Min, fixedX.Max, settings.Ticks.DesiredXStep, width)
+                    : settings.XWindow is { } xWindow
+                        ? FixedAxis(settings, Math.Max(0, initialBounds.XMax - xWindow), initialBounds.XMax, settings.Ticks.DesiredXStep, width)
+                        : CalculateAdjustedBoundsAndTicks(settings, initialBounds.XMin,
+                            initialBounds.XMax, settings.Ticks.DesiredXStep, width, CalculateYTickLabelSize(yTicks));
 
             var adjustedBounds = new Bounds(adjustedXBounds.min, adjustedXBounds.max, adjustedYBounds.min,
                 adjustedYBounds.max);
@@ -148,6 +161,27 @@ namespace ConsolePlot.Plotting
         private static double CalculateTickStep(double min, double max, int desiredStep, int size)
         {
             return NiceNumber((max - min) / (size / desiredStep), true);
+        }
+
+        // A pinned axis: the bounds are exactly [min, max] (no adjustment), with nice-number ticks generated inside
+        // that range. Keeps the axis stable across live updates instead of tracking the data's changing min/max.
+        private static ((double min, double max) bounds, List<Tick> ticks) FixedAxis(
+            PlotSettings settings, double min, double max, int desiredStep, int size)
+        {
+            if (max <= min) max = min + 1;   // guard a degenerate pinned range
+            var step = CalculateTickStep(min, max, desiredStep, size);
+            var ticks = GenerateTicks(min, max, step, settings.Ticks.Labels.Format, fitWithinBounds: true);
+            if (ticks.Count == 0)
+                ticks.Add(new Tick(min, min.ToString(settings.Ticks.Labels.Format)));
+            return ((min, max), ticks);
+        }
+
+        private static List<Tick> ToTicks(IReadOnlyList<(double Value, string Label)> ticks)
+        {
+            var result = new List<Tick>(ticks.Count);
+            foreach (var (value, label) in ticks)
+                result.Add(new Tick(value, label ?? string.Empty));
+            return result;
         }
 
         private static List<Tick> GenerateTicks(

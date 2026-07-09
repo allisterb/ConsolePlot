@@ -31,6 +31,16 @@ namespace ConsolePlot
         /// </summary>
         public TickSettings Ticks => _settings.Ticks;
 
+        /// <summary>A fixed (min, max) horizontal-axis range, or <see langword="null"/> to auto-scale; see
+        /// <see cref="PlotSettings.FixedXRange"/>.</summary>
+        public (double Min, double Max)? FixedXRange { get => _settings.FixedXRange; set => _settings.FixedXRange = value; }
+
+        /// <summary>A fixed (min, max) vertical-axis range, or <see langword="null"/> to auto-scale.</summary>
+        public (double Min, double Max)? FixedYRange { get => _settings.FixedYRange; set => _settings.FixedYRange = value; }
+
+        /// <summary>A sliding horizontal window width, or <see langword="null"/>; see <see cref="PlotSettings.XWindow"/>.</summary>
+        public double? XWindow { get => _settings.XWindow; set => _settings.XWindow = value; }
+
         /// <summary>
         /// Gets the collection of elements (series, scatter, stems, …) added to the plot.
         /// </summary>
@@ -188,6 +198,75 @@ namespace ConsolePlot
             var bars = new ErrorBarSeries(xs, ys, errLows, errHighs, color, capRadius);
             Elements.Add(bars);
             return bars;
+        }
+
+        /// <summary>
+        /// Adds a grouped (side-by-side) vertical bar element: each x holds one sub-bar per series in
+        /// <paramref name="seriesValues"/>, coloured by <paramref name="colors"/>.
+        /// </summary>
+        public MultiBarSeries AddGroupedBars(
+            IReadOnlyCollection<double> xs,
+            IEnumerable<IEnumerable<double>> seriesValues,
+            IEnumerable<ConsoleGUI.Data.Color> colors,
+            double baseline = 0,
+            double widthFraction = 0.8)
+        {
+            var bars = new MultiBarSeries(xs, seriesValues, colors, stacked: false, baseline, widthFraction);
+            Elements.Add(bars);
+            return bars;
+        }
+
+        /// <summary>
+        /// Adds a stacked vertical bar element: at each x the series in <paramref name="seriesValues"/> are stacked
+        /// from <paramref name="baseline"/>, coloured by <paramref name="colors"/>.
+        /// </summary>
+        public MultiBarSeries AddStackedBars(
+            IReadOnlyCollection<double> xs,
+            IEnumerable<IEnumerable<double>> seriesValues,
+            IEnumerable<ConsoleGUI.Data.Color> colors,
+            double baseline = 0,
+            double widthFraction = 0.8)
+        {
+            var bars = new MultiBarSeries(xs, seriesValues, colors, stacked: true, baseline, widthFraction);
+            Elements.Add(bars);
+            return bars;
+        }
+
+        /// <summary>
+        /// Adds a horizontal bar series: each category sits at a Y position and its bar grows along X from
+        /// <paramref name="baseline"/> to its value.
+        /// </summary>
+        public HBarSeries AddHBars(
+            IReadOnlyCollection<double> ys,
+            IReadOnlyCollection<double> values,
+            ConsoleGUI.Data.Color color,
+            double baseline = 0,
+            double widthFraction = 0.8)
+        {
+            if (ys.Count != values.Count)
+                throw new ArgumentException("Y and value collections must have the same length.");
+
+            var bars = new HBarSeries(ys, values, color, baseline, widthFraction);
+            Elements.Add(bars);
+            return bars;
+        }
+
+        /// <summary>
+        /// Adds a heatmap: a grid of <paramref name="values"/> (rows × cols, row 0 at the top) tiled over the data
+        /// rectangle [<paramref name="xMin"/>..<paramref name="xMax"/>] × [<paramref name="yMin"/>..
+        /// <paramref name="yMax"/>], coloured by <paramref name="colorMap"/> over [<paramref name="vmin"/>,
+        /// <paramref name="vmax"/>].
+        /// </summary>
+        public HeatSeries AddHeatmap(
+            IEnumerable<IEnumerable<double>> values,
+            double xMin, double xMax, double yMin, double yMax,
+            double vmin, double vmax,
+            Func<double, ConsoleGUI.Data.Color> colorMap,
+            Func<double, string> cellText = null)
+        {
+            var heat = new HeatSeries(values, xMin, xMax, yMin, yMax, vmin, vmax, colorMap, cellText);
+            Elements.Add(heat);
+            return heat;
         }
 
         /// <summary>
