@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using ConsolePlot.Drawing;
 
 namespace ConsolePlot.Plotting
@@ -108,13 +107,15 @@ namespace ConsolePlot.Plotting
             int labelSize)
         {
             var tickStep = CalculateTickStep(min, max, desiredStepSize, size);
-            var ticks = GenerateTicks(min, max, tickStep, settings.Ticks.Labels.Format, false);
+            // Only the tick VALUES are needed to adjust the bounds; skip building the label strings for this throwaway
+            // pass (they're regenerated below over the adjusted range).
+            var ticks = GenerateTicks(min, max, tickStep, settings.Ticks.Labels.Format, false, withLabels: false);
 
             var drawingRange = CalculateDrawingRange(settings, labelSize, size);
 
             // Adjust the data bounds so that the ticks match the cells
             var (adjustedMin, adjustedMax) = AdjustDataBoundsToTicks(settings, min, max, ticks, drawingRange, labelSize);
-            // The new bounds will be wider, so we need to generate new ticks.
+            // The new bounds will be wider, so we need to generate new ticks (now with their label strings).
             ticks = GenerateTicks(adjustedMin, adjustedMax, tickStep, settings.Ticks.Labels.Format, true);
 
             return ((adjustedMin, adjustedMax), ticks);
@@ -127,18 +128,20 @@ namespace ConsolePlot.Plotting
 
         private static int CalculateYTickLabelSize(List<Tick> yTicks)
         {
-            return yTicks.Max(t => t.Label.Length);
+            var max = 0;
+            foreach (var t in yTicks)
+                if (t.Label.Length > max) max = t.Label.Length;
+            return max;
         }
 
         private static Bounds CalculateDataBounds(List<PlotElement> elements)
         {
-            Bounds bounds = null;
+            Bounds? bounds = null;
             foreach (var element in elements)
                 bounds = Bounds.Union(bounds, element.GetDataBounds());
 
             // No finite data anywhere: fall back to a unit box so tick/area math stays well-defined.
-            bounds ??= new Bounds(0, 1, 0, 1);
-            return Pad(bounds);
+            return Pad(bounds ?? new Bounds(0, 1, 0, 1));
         }
 
         // A zero-width or zero-height data range (a single point, or a flat/constant series) collapses the tick math
@@ -189,18 +192,23 @@ namespace ConsolePlot.Plotting
             double max,
             double stepSize,
             string format,
-            bool fitWithinBounds)
+            bool fitWithinBounds,
+            bool withLabels = true)
         {
             var minStep = (int)(fitWithinBounds ? Math.Ceiling(min / stepSize) : Math.Round(min / stepSize));
             var maxStep = (int)(fitWithinBounds ? Math.Floor(max / stepSize) : Math.Round(max / stepSize));
 
-            return Enumerable.Range(minStep, maxStep - minStep + 1)
-                .Select(step =>
-                {
-                    var tickValue = step * stepSize;
-                    return new Tick(tickValue, tickValue.ToString(format));
-                })
-                .ToList();
+            // A plain loop instead of Enumerable.Range(...).Select(...).ToList(): no Range/Select iterators and no
+            // captured closure per draw. The List and the per-tick label strings are the only remaining allocations.
+            var count = maxStep - minStep + 1;
+            var result = new List<Tick>(count > 0 ? count : 0);
+            for (var step = minStep; step <= maxStep; step++)
+            {
+                var tickValue = step * stepSize;
+                result.Add(new Tick(tickValue, withLabels ? tickValue.ToString(format) : string.Empty));
+            }
+
+            return result;
         }
 
         private static double NiceNumber(double range, bool round)
@@ -265,8 +273,8 @@ namespace ConsolePlot.Plotting
             int axisLabelWidth)
         {
             // Find the range of values
-            var minTickValue = ticks.First().Value;
-            var maxTickValue = ticks.Last().Value;
+            var minTickValue = ticks[0].Value;
+            var maxTickValue = ticks[ticks.Count - 1].Value;
             var minValue = Math.Min(initialMinValue, minTickValue);
             var maxValue = Math.Max(initialMaxValue, maxTickValue);
 
@@ -321,7 +329,13 @@ namespace ConsolePlot.Plotting
 
         private static double CalculateAxisCross(List<Tick> ticks)
         {
-            return ticks.Min(t => Math.Abs(t.Value));
+            var min = double.PositiveInfinity;
+            foreach (var t in ticks)
+            {
+                var abs = Math.Abs(t.Value);
+                if (abs < min) min = abs;
+            }
+            return min;
         }
 
         private static Rectangle CalculateDrawingArea(

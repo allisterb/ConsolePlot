@@ -27,8 +27,8 @@ namespace ConsolePlot.Plotting
 
         public BarSeries(IEnumerable<double> xs, IEnumerable<double> ys, ConsoleGUI.Data.Color color, double baseline = 0, double widthFraction = 0.8)
         {
-            Xs = new List<double>(xs);
-            Ys = new List<double>(ys);
+            Xs = AsList(xs);
+            Ys = AsList(ys);
             if (Xs.Count != Ys.Count)
                 throw new ArgumentException("X and Y collections must have the same length.");
             Color = color;
@@ -37,7 +37,7 @@ namespace ConsolePlot.Plotting
         }
 
         // Bars are anchored at the baseline, so it must be inside the y-range for them to render sensibly.
-        internal override Bounds GetDataBounds() => Bounds.FromXY(Xs, Ys)?.IncludeY(Baseline);
+        internal override Bounds? GetDataBounds() => Bounds.FromXY(Xs, Ys)?.IncludeY(Baseline);
 
         internal override void Draw(GraphGraphics graphics) => graphics.DrawBars(Color, Xs, Ys, Baseline, WidthFraction);
     }

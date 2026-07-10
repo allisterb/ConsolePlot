@@ -32,10 +32,10 @@ namespace ConsolePlot.Plotting
             IEnumerable<double> xs, IEnumerable<double> ys, IEnumerable<double> errLows, IEnumerable<double> errHighs,
             ConsoleGUI.Data.Color color, int capRadius = 1)
         {
-            Xs = new List<double>(xs);
-            Ys = new List<double>(ys);
-            ErrLows = new List<double>(errLows);
-            ErrHighs = new List<double>(errHighs);
+            Xs = AsList(xs);
+            Ys = AsList(ys);
+            ErrLows = AsList(errLows);
+            ErrHighs = AsList(errHighs);
 
             int n = Xs.Count;
             if (Ys.Count != n || ErrLows.Count != n || ErrHighs.Count != n)
@@ -45,19 +45,30 @@ namespace ConsolePlot.Plotting
             CapRadius = Math.Max(0, capRadius);
         }
 
-        // Y-range spans each point's low and high whisker ends.
-        internal override Bounds GetDataBounds()
+        // Y-range spans each point's low and high whisker ends. Computed in a single pass (no temporary arrays) so
+        // the per-draw bounds calculation allocates nothing.
+        internal override Bounds? GetDataBounds()
         {
             int n = Xs.Count;
-            var lows = new double[n];
-            var highs = new double[n];
+            bool any = false;
+            double xMin = double.PositiveInfinity, xMax = double.NegativeInfinity;
+            double yMin = double.PositiveInfinity, yMax = double.NegativeInfinity;
             for (int i = 0; i < n; i++)
             {
-                lows[i] = Ys[i] - Math.Abs(ErrLows[i]);
-                highs[i] = Ys[i] + Math.Abs(ErrHighs[i]);
+                double x = Xs[i];
+                double low = Ys[i] - Math.Abs(ErrLows[i]);
+                double high = Ys[i] + Math.Abs(ErrHighs[i]);
+                if (double.IsNaN(x) || double.IsInfinity(x) || double.IsNaN(low) || double.IsInfinity(low) ||
+                    double.IsNaN(high) || double.IsInfinity(high))
+                    continue;
+                any = true;
+                if (x < xMin) xMin = x;
+                if (x > xMax) xMax = x;
+                if (low < yMin) yMin = low;
+                if (high > yMax) yMax = high;
             }
 
-            return Bounds.Union(Bounds.FromXY(Xs, lows), Bounds.FromXY(Xs, highs));
+            return any ? new Bounds(xMin, xMax, yMin, yMax) : (Bounds?)null;
         }
 
         internal override void Draw(GraphGraphics graphics) =>

@@ -1,9 +1,10 @@
 ﻿namespace ConsolePlot.Plotting
 {
     /// <summary>
-    /// Converts coordinates between different coordinate systems.
+    /// Converts coordinates between different coordinate systems. A value type: one is created per draw and one per
+    /// series (the scaled sub-cell converter), so a struct keeps them off the GC heap.
     /// </summary>
-    internal class CoordinateConverter
+    internal readonly struct CoordinateConverter
     {
         public (double Min, double Max) SourceX { get; }
         public (double Min, double Max) SourceY { get; }

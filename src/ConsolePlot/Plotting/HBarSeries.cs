@@ -28,8 +28,8 @@ namespace ConsolePlot.Plotting
             IEnumerable<double> ys, IEnumerable<double> values, ConsoleGUI.Data.Color color,
             double baseline = 0, double widthFraction = 0.8)
         {
-            Ys = new List<double>(ys);
-            Values = new List<double>(values);
+            Ys = AsList(ys);
+            Values = AsList(values);
             if (Values.Count != Ys.Count)
                 throw new ArgumentException("ys and values must have the same length.");
 
@@ -39,7 +39,7 @@ namespace ConsolePlot.Plotting
         }
 
         // Positions are on Y, values on X; include the baseline in the X range so the bars start at it.
-        internal override Bounds GetDataBounds() => Bounds.FromXY(Values, Ys)?.IncludeX(Baseline);
+        internal override Bounds? GetDataBounds() => Bounds.FromXY(Values, Ys)?.IncludeX(Baseline);
 
         internal override void Draw(GraphGraphics graphics) =>
             graphics.DrawHBars(Color, Ys, Values, Baseline, WidthFraction);

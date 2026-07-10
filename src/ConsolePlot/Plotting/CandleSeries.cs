@@ -36,11 +36,11 @@ namespace ConsolePlot.Plotting
             IEnumerable<double> lows, IEnumerable<double> closes,
             ConsoleGUI.Data.Color upColor, ConsoleGUI.Data.Color downColor)
         {
-            Xs = new List<double>(xs);
-            Opens = new List<double>(opens);
-            Highs = new List<double>(highs);
-            Lows = new List<double>(lows);
-            Closes = new List<double>(closes);
+            Xs = AsList(xs);
+            Opens = AsList(opens);
+            Highs = AsList(highs);
+            Lows = AsList(lows);
+            Closes = AsList(closes);
 
             int n = Xs.Count;
             if (Opens.Count != n || Highs.Count != n || Lows.Count != n || Closes.Count != n)
@@ -51,7 +51,7 @@ namespace ConsolePlot.Plotting
         }
 
         // X-range from the positions, y-range spanning lows..highs.
-        internal override Bounds GetDataBounds() => Bounds.Union(Bounds.FromXY(Xs, Highs), Bounds.FromXY(Xs, Lows));
+        internal override Bounds? GetDataBounds() => Bounds.Union(Bounds.FromXY(Xs, Highs), Bounds.FromXY(Xs, Lows));
 
         internal override void Draw(GraphGraphics graphics) =>
             graphics.DrawCandles(Xs, Opens, Highs, Lows, Closes, UpColor, DownColor);

@@ -42,12 +42,12 @@ namespace ConsolePlot.Plotting
             IEnumerable<double> medians, IEnumerable<double> q3s, IEnumerable<double> maxes,
             ConsoleGUI.Data.Color boxColor, ConsoleGUI.Data.Color medianColor, double widthFraction = 0.6)
         {
-            Xs = new List<double>(xs);
-            Mins = new List<double>(mins);
-            Q1s = new List<double>(q1s);
-            Medians = new List<double>(medians);
-            Q3s = new List<double>(q3s);
-            Maxes = new List<double>(maxes);
+            Xs = AsList(xs);
+            Mins = AsList(mins);
+            Q1s = AsList(q1s);
+            Medians = AsList(medians);
+            Q3s = AsList(q3s);
+            Maxes = AsList(maxes);
 
             int n = Xs.Count;
             if (Mins.Count != n || Q1s.Count != n || Medians.Count != n || Q3s.Count != n || Maxes.Count != n)
@@ -59,7 +59,7 @@ namespace ConsolePlot.Plotting
         }
 
         // X-range from the positions, y-range spanning mins..maxes.
-        internal override Bounds GetDataBounds() => Bounds.Union(Bounds.FromXY(Xs, Maxes), Bounds.FromXY(Xs, Mins));
+        internal override Bounds? GetDataBounds() => Bounds.Union(Bounds.FromXY(Xs, Maxes), Bounds.FromXY(Xs, Mins));
 
         internal override void Draw(GraphGraphics graphics) =>
             graphics.DrawBoxes(BoxColor, MedianColor, Xs, Mins, Q1s, Medians, Q3s, Maxes, WidthFraction);

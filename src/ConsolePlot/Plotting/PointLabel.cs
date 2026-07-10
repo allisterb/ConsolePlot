@@ -48,7 +48,7 @@ namespace ConsolePlot.Plotting
         }
 
         // Annotations ride on top of existing data; they must not expand the axes.
-        internal override Bounds GetDataBounds() => null;
+        internal override Bounds? GetDataBounds() => null;
 
         internal override void Draw(GraphGraphics graphics) =>
             graphics.DrawLabel(X, Y, Text, Foreground, Background, Alignment, OffsetX, OffsetY);

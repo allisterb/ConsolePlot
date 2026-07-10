@@ -51,8 +51,8 @@ namespace ConsolePlot.Plotting
             CellText = cellText;
         }
 
-        internal override Bounds GetDataBounds() =>
-            Values.Count == 0 ? null : new Bounds(XMin, XMax, YMin, YMax);
+        internal override Bounds? GetDataBounds() =>
+            Values.Count == 0 ? (Bounds?)null : new Bounds(XMin, XMax, YMin, YMax);
 
         internal override void Draw(GraphGraphics graphics) =>
             graphics.DrawHeat(Values, XMin, XMax, YMin, YMax, VMin, VMax, ColorMap, CellText);

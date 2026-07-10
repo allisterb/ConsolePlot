@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using ConsolePlot.Drawing.Tools;
 
 namespace ConsolePlot.Plotting
@@ -35,8 +34,8 @@ namespace ConsolePlot.Plotting
         /// <exception cref="ArgumentException">Thrown when xs and ys have different lengths or when pen is null.</exception>
         public Series(IEnumerable<double> xs, IEnumerable<double> ys, PointPen pen)
         {
-            Xs = xs.ToList();
-            Ys = ys.ToList();
+            Xs = AsList(xs);
+            Ys = AsList(ys);
 
             if (Xs.Count != Ys.Count)
                 throw new ArgumentException("X and Y collections must have the same length.");
@@ -45,7 +44,7 @@ namespace ConsolePlot.Plotting
             Pen = pen;
         }
 
-        internal override Bounds GetDataBounds() => Bounds.FromXY(Xs, Ys);
+        internal override Bounds? GetDataBounds() => Bounds.FromXY(Xs, Ys);
 
         internal override void Draw(GraphGraphics graphics) => graphics.DrawLines(Pen, Xs, Ys);
     }
@@ -75,7 +74,7 @@ namespace ConsolePlot.Plotting
         }
 
         // Include the baseline so short stems (data far from the baseline) stay visible.
-        internal override Bounds GetDataBounds() => base.GetDataBounds()?.IncludeY(Baseline);
+        internal override Bounds? GetDataBounds() => base.GetDataBounds()?.IncludeY(Baseline);
 
         internal override void Draw(GraphGraphics graphics) => graphics.DrawStems(StemPen, Pen, Xs, Ys, Baseline);
     }

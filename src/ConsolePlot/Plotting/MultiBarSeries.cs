@@ -31,9 +31,9 @@ namespace ConsolePlot.Plotting
             IEnumerable<double> xs, IEnumerable<IEnumerable<double>> seriesValues, IEnumerable<ConsoleGUI.Data.Color> colors,
             bool stacked, double baseline = 0, double widthFraction = 0.8)
         {
-            Xs = new List<double>(xs);
+            Xs = AsList(xs);
             var series = new List<IReadOnlyList<double>>();
-            foreach (var s in seriesValues) series.Add(new List<double>(s));
+            foreach (var s in seriesValues) series.Add(AsList(s));
             SeriesValues = series;
             Colors = new List<ConsoleGUI.Data.Color>(colors);
             Stacked = stacked;
@@ -47,17 +47,20 @@ namespace ConsolePlot.Plotting
                     throw new ArgumentException("Every series must have the same length as xs.");
         }
 
-        internal override Bounds GetDataBounds()
+        internal override Bounds? GetDataBounds()
         {
-            Bounds bounds = null;
+            Bounds? bounds = null;
             if (Stacked)
             {
-                // The stack track per x reaches from the baseline through each cumulative sum; the axis must span
-                // the lowest and highest points the stack reaches.
-                var lows = new double[Xs.Count];
-                var highs = new double[Xs.Count];
+                // The stack track per x reaches from the baseline through each cumulative sum; the axis must span the
+                // lowest and highest points the stack reaches. Computed in a single pass (no temporary arrays).
+                bool any = false;
+                double xMin = double.PositiveInfinity, xMax = double.NegativeInfinity;
+                double yMin = double.PositiveInfinity, yMax = double.NegativeInfinity;
                 for (int i = 0; i < Xs.Count; i++)
                 {
+                    double x = Xs[i];
+                    if (double.IsNaN(x) || double.IsInfinity(x)) continue;
                     double cumulative = Baseline, lo = Baseline, hi = Baseline;
                     foreach (var s in SeriesValues)
                     {
@@ -67,10 +70,13 @@ namespace ConsolePlot.Plotting
                         if (cumulative < lo) lo = cumulative;
                         if (cumulative > hi) hi = cumulative;
                     }
-                    lows[i] = lo;
-                    highs[i] = hi;
+                    any = true;
+                    if (x < xMin) xMin = x;
+                    if (x > xMax) xMax = x;
+                    if (lo < yMin) yMin = lo;
+                    if (hi > yMax) yMax = hi;
                 }
-                bounds = Bounds.Union(Bounds.FromXY(Xs, lows), Bounds.FromXY(Xs, highs));
+                bounds = any ? new Bounds(xMin, xMax, yMin, yMax) : (Bounds?)null;
             }
             else
             {

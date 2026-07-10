@@ -2,7 +2,10 @@ using System.Collections.Generic;
 
 namespace ConsolePlot.Plotting
 {
-    internal class Bounds
+    // A value type: bounds are created and combined many times per draw (one per element, per union, per pad), so a
+    // struct keeps the whole bounds cascade off the GC heap. "No bounds" is represented by a null Bounds? rather than
+    // a null reference.
+    internal readonly struct Bounds
     {
         public double XMin { get; }
         public double XMax { get; }
@@ -18,7 +21,7 @@ namespace ConsolePlot.Plotting
         }
 
         /// <summary>Bounds enclosing the finite points of the paired series, or <see langword="null"/> if none are finite.</summary>
-        public static Bounds FromXY(IReadOnlyList<double> xs, IReadOnlyList<double> ys)
+        public static Bounds? FromXY(IReadOnlyList<double> xs, IReadOnlyList<double> ys)
         {
             bool any = false;
             double xMin = double.PositiveInfinity, xMax = double.NegativeInfinity;
@@ -35,7 +38,7 @@ namespace ConsolePlot.Plotting
                 if (y > yMax) yMax = y;
             }
 
-            return any ? new Bounds(xMin, xMax, yMin, yMax) : null;
+            return any ? new Bounds(xMin, xMax, yMin, yMax) : (Bounds?)null;
         }
 
         /// <summary>Extends the bounds vertically to include <paramref name="y"/> (e.g. a stem/bar baseline).</summary>
@@ -47,13 +50,15 @@ namespace ConsolePlot.Plotting
             new Bounds(System.Math.Min(XMin, x), System.Math.Max(XMax, x), YMin, YMax);
 
         /// <summary>The smallest bounds enclosing both <paramref name="a"/> and <paramref name="b"/> (either may be null).</summary>
-        public static Bounds Union(Bounds a, Bounds b)
+        public static Bounds? Union(Bounds? a, Bounds? b)
         {
             if (a is null) return b;
             if (b is null) return a;
+            var x = a.Value;
+            var y = b.Value;
             return new Bounds(
-                System.Math.Min(a.XMin, b.XMin), System.Math.Max(a.XMax, b.XMax),
-                System.Math.Min(a.YMin, b.YMin), System.Math.Max(a.YMax, b.YMax));
+                System.Math.Min(x.XMin, y.XMin), System.Math.Max(x.XMax, y.XMax),
+                System.Math.Min(x.YMin, y.YMin), System.Math.Max(x.YMax, y.YMax));
         }
     }
 }

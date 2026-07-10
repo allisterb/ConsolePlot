@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Linq;
 using ConsolePlot.Drawing;
 
 namespace ConsolePlot.Plotting
@@ -109,7 +108,7 @@ namespace ConsolePlot.Plotting
         {
             var x = _settings.Ticks.Labels.AttachToAxis
                 ? (int)Math.Round(converter.ConvertX(_plotData.Axis.X))
-                : _plotData.YTicks.Select(t => t.Label.Length).Max();
+                : MaxLabelLength(_plotData.YTicks);
 
             foreach (var tick in _plotData.YTicks)
             {
@@ -120,6 +119,14 @@ namespace ConsolePlot.Plotting
                 }
                 graphics.DrawString(tick.Label, _settings.Ticks.Labels.Color, x - tick.Label.Length, y, ensureVisible: true);
             }
+        }
+
+        private static int MaxLabelLength(System.Collections.Generic.List<Tick> ticks)
+        {
+            var max = 0;
+            foreach (var t in ticks)
+                if (t.Label.Length > max) max = t.Label.Length;
+            return max;
         }
 
         private CoordinateConverter CreateConverter(Bounds dataBounds, Rectangle drawingArea)
