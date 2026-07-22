@@ -50,6 +50,22 @@ namespace ConsolePlot.Plotting
 
             if (_settings.Ticks.Labels.IsVisible)
                 DrawLabels(graphics, converter);
+
+            DrawAxisTitles(graphics);
+        }
+
+        // Screen-anchored axis captions, drawn at the image edges (Y-title top-left, X-title bottom-right) rather than
+        // at data coordinates, so they stay pinned when the axes rescale. The image is y-up (row 0 = bottom), so top is
+        // Height - 1 and bottom is 0. DrawString clips per-character, so a caption wider than the plot just truncates.
+        private void DrawAxisTitles(ConsoleGraphics graphics)
+        {
+            var yTitle = _settings.Axis.YTitle;
+            if (!string.IsNullOrEmpty(yTitle))
+                graphics.DrawString(yTitle, _settings.Axis.TitleColor, 0, _image.Height - 1);
+
+            var xTitle = _settings.Axis.XTitle;
+            if (!string.IsNullOrEmpty(xTitle))
+                graphics.DrawString(xTitle, _settings.Axis.TitleColor, _image.Width - xTitle.Length, 0);
         }
 
         private void DrawGrid(GraphGraphics graphics)
