@@ -531,11 +531,17 @@ namespace ConsolePlot.Plotting
 
         // The sub-cell converter: the drawing area scaled up by the brush's resolution, so a line/point is rasterized
         // at sub-cell precision and VirtualGraphics folds the sub-cells back into one rich glyph.
+        // Each cell contributes vRes/hRes sub-pixels, so the drawing area's inclusive cell range [Bottom, Top] spans
+        // the sub-pixel range [Bottom*res, Top*res + (res-1)] — the "+ (res-1)" reaches the far sub-pixels of the last
+        // cell. Without it the top (vRes-1) sub-rows and right (hRes-1) sub-cols are never used, so a point's sub-cell
+        // position is biased toward the cell's bottom-left and (e.g.) data-max lights a cell's bottom braille dots.
         private CoordinateConverter ScaledConverter(PointPen pen) => new CoordinateConverter(
             _converter.SourceX.Min, _converter.SourceX.Max,
-            _converter.TargetX.Min * pen.Brush.HorizontalResolution, _converter.TargetX.Max * pen.Brush.HorizontalResolution,
+            _converter.TargetX.Min * pen.Brush.HorizontalResolution,
+            _converter.TargetX.Max * pen.Brush.HorizontalResolution + (pen.Brush.HorizontalResolution - 1),
             _converter.SourceY.Min, _converter.SourceY.Max,
-            _converter.TargetY.Min * pen.Brush.VerticalResolution, _converter.TargetY.Max * pen.Brush.VerticalResolution);
+            _converter.TargetY.Min * pen.Brush.VerticalResolution,
+            _converter.TargetY.Max * pen.Brush.VerticalResolution + (pen.Brush.VerticalResolution - 1));
 
         private static (int?, int?) ConvertPoint(CoordinateConverter converter, double x, double y)
         {
