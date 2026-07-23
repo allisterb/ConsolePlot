@@ -250,8 +250,8 @@ namespace ConsolePlot.Drawing
         {
             for (var x = start; x <= end; x++)
             {
-                var pixel = Image.GetPixel(x, y);
-                var symbol = pixel.Character == pen.Brush.Vertical || pixel.Character == pen.Brush.Cross
+                var ch = Image.GetCharacter(x, y).Content;
+                var symbol = ch == pen.Brush.Vertical || ch == pen.Brush.Cross
                     ? pen.Brush.Cross
                     : pen.Brush.Horizontal;
                 Image.SetPixel(x, y, symbol, pen.Color);
@@ -262,8 +262,8 @@ namespace ConsolePlot.Drawing
         {
             for (var y = start; y <= end; y++)
             {
-                var pixel = Image.GetPixel(x, y);
-                var symbol = pixel.Character == pen.Brush.Horizontal || pixel.Character == pen.Brush.Cross
+                var ch = Image.GetCharacter(x, y).Content;
+                var symbol = ch == pen.Brush.Horizontal || ch == pen.Brush.Cross
                     ? pen.Brush.Cross
                     : pen.Brush.Vertical;
                 Image.SetPixel(x, y, symbol, pen.Color);

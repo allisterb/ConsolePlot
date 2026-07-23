@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using ConsoleGUI.Api;
 using ConsolePlot.Drawing;
 using ConsolePlot.Drawing.Tools;
 using ConsolePlot.Plotting;
@@ -60,6 +61,16 @@ namespace ConsolePlot
             }
 
             _image = new ConsoleImage(width, height);
+            _settings = new PlotSettings();
+        }
+
+        /// <summary>
+        /// Initializes a new <see cref="Plot"/> that draws straight into <paramref name="target"/> (its size sets the
+        /// plot size) — no intermediate pixel buffer to copy out. Used by a host that owns the render buffer.
+        /// </summary>
+        public Plot(IConsoleBuffer target)
+        {
+            _image = new ConsoleImage(target);
             _settings = new PlotSettings();
         }
 
@@ -314,9 +325,9 @@ namespace ConsolePlot
             {
                 for (int x = 0; x < _image.Width; x++)
                 {
-                    var pixel = _image.buffer[y, x];
-                    Console.ForegroundColor = GetNearestConsoleColor(pixel.ForegroundColor);
-                    Console.Write(pixel.Character);
+                    var cell = _image.GetCharacter(x, y);
+                    Console.ForegroundColor = GetNearestConsoleColor(cell.Foreground ?? default);
+                    Console.Write(cell.Content ?? ' ');
                 }
                 Console.WriteLine();
             }

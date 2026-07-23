@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using ConsolePlot.Drawing;
 using ConsolePlot.Drawing.Tools;
 
@@ -29,10 +30,27 @@ namespace ConsolePlot.Plotting
         {
             var graphics = new VirtualGraphics(_graphics.GetImage(), pen);
             var converter = ScaledConverter(pen);
+            int n = xs.Count;
 
             int? x1 = null, y1 = null;
 
-            for (int i = 0; i < xs.Count; i++)
+            // Fast path: index the backing array/list directly — avoids a per-point IReadOnlyList indexer interface
+            // call (and lets the JIT elide bounds checks). Covers static series (double[]) and live series
+            // (List<double>, via CollectionsMarshal). Any other IReadOnlyList falls through to the indexer below.
+            if (TryAsSpan(xs, out var sx) && TryAsSpan(ys, out var sy))
+            {
+                for (int i = 0; i < n; i++)
+                {
+                    var (x2, y2) = ConvertPoint(converter, sx[i], sy[i]);
+                    if (x1 != null && y1 != null && x2 != null && y2 != null)
+                        graphics.DrawLine(x1.Value, y1.Value, x2.Value, y2.Value);
+                    x1 = x2;
+                    y1 = y2;
+                }
+                return;
+            }
+
+            for (int i = 0; i < n; i++)
             {
                 var (x2, y2) = ConvertPoint(converter, xs[i], ys[i]);
 
@@ -49,12 +67,39 @@ namespace ConsolePlot.Plotting
         {
             var graphics = new VirtualGraphics(_graphics.GetImage(), pen);
             var converter = ScaledConverter(pen);
+            int n = xs.Count;
 
-            for (int i = 0; i < xs.Count; i++)
+            // Fast path — see DrawLines.
+            if (TryAsSpan(xs, out var sx) && TryAsSpan(ys, out var sy))
+            {
+                for (int i = 0; i < n; i++)
+                {
+                    var (x, y) = ConvertPoint(converter, sx[i], sy[i]);
+                    if (x != null && y != null)
+                        graphics.DrawPoint(x.Value, y.Value);
+                }
+                return;
+            }
+
+            for (int i = 0; i < n; i++)
             {
                 var (x, y) = ConvertPoint(converter, xs[i], ys[i]);
                 if (x != null && y != null)
                     graphics.DrawPoint(x.Value, y.Value);
+            }
+        }
+
+        // Exposes the backing storage of a double[] or List<double> as a span so the draw loops can index it
+        // directly (no IReadOnlyList indexer dispatch). Returns false for any other IReadOnlyList — the caller then
+        // uses the interface indexer. Safe here: drawing runs single-threaded on the UI thread, so the list isn't
+        // mutated mid-iteration.
+        private static bool TryAsSpan(IReadOnlyList<double> values, out ReadOnlySpan<double> span)
+        {
+            switch (values)
+            {
+                case double[] a: span = a; return true;
+                case List<double> l: span = CollectionsMarshal.AsSpan(l); return true;
+                default: span = default; return false;
             }
         }
 

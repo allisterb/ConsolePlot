@@ -54,8 +54,8 @@ namespace ConsolePlot.Drawing
 
             if (ClipBounds.Contains(bufferX, bufferY))
             {
-                var pixel = Image.GetPixel(bufferX, bufferY);
-                var oldChar = pixel.ForegroundColor == pen.Color ? pixel.Character : ' ';
+                var cell = Image.GetCharacter(bufferX, bufferY);
+                var oldChar = cell.Foreground == pen.Color ? cell.Content ?? ' ' : ' ';
                 var newChar = pen.Brush.RenderPoint(oldChar, subX, subY);
                 Image.SetPixel(bufferX, bufferY, newChar, pen.Color);
             }

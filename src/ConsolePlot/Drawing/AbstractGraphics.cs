@@ -54,9 +54,9 @@ namespace ConsolePlot.Drawing
         /// <param name="clearColor">The color to use for filling.</param>
         public void Clear(char clearChar = ' ', ConsoleColor clearColor = ConsoleColor.White)
         {
-            for (var y = 0; y <= Image.Height; y++)
+            for (var y = 0; y < Image.Height; y++)
             {
-                for (var x = 0; x <= Image.Width; x++)
+                for (var x = 0; x < Image.Width; x++)
                 {
                     Image.SetPixel(x, y, clearChar, clearColor);
                 }
