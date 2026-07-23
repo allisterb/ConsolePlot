@@ -115,8 +115,11 @@ namespace ConsolePlot.Plotting
 
             // Adjust the data bounds so that the ticks match the cells
             var (adjustedMin, adjustedMax) = AdjustDataBoundsToTicks(settings, min, max, ticks, drawingRange, labelSize);
-            // The new bounds will be wider, so we need to generate new ticks (now with their label strings).
-            ticks = GenerateTicks(adjustedMin, adjustedMax, tickStep, settings.Ticks.Labels.Format, true);
+            // The new bounds will be wider, so we need to generate new ticks. Build their label strings only when the
+            // labels are actually drawn — a hidden-label axis still needs the tick VALUES (axis cross, drawing area)
+            // but never the per-tick ToString(format) allocation.
+            ticks = GenerateTicks(adjustedMin, adjustedMax, tickStep, settings.Ticks.Labels.Format, true,
+                withLabels: settings.Ticks.Labels.IsVisible);
 
             return ((adjustedMin, adjustedMax), ticks);
         }
@@ -173,9 +176,12 @@ namespace ConsolePlot.Plotting
         {
             if (max <= min) max = min + 1;   // guard a degenerate pinned range
             var step = CalculateTickStep(min, max, desiredStep, size);
-            var ticks = GenerateTicks(min, max, step, settings.Ticks.Labels.Format, fitWithinBounds: true);
+            // Labels only built when they'll be drawn — the pinned-axis (fixed-range) path is the common live/scope
+            // case, so skipping the per-tick ToString each frame when labels are hidden avoids that string churn.
+            var withLabels = settings.Ticks.Labels.IsVisible;
+            var ticks = GenerateTicks(min, max, step, settings.Ticks.Labels.Format, fitWithinBounds: true, withLabels: withLabels);
             if (ticks.Count == 0)
-                ticks.Add(new Tick(min, min.ToString(settings.Ticks.Labels.Format)));
+                ticks.Add(new Tick(min, withLabels ? min.ToString(settings.Ticks.Labels.Format) : string.Empty));
             return ((min, max), ticks);
         }
 
