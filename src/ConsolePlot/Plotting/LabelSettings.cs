@@ -13,9 +13,10 @@ namespace ConsolePlot.Plotting
         public bool IsVisible { get; set; } = true;
 
         /// <summary>
-        /// Gets or sets the color of the tick labels.
+        /// Gets or sets the full-RGB color of the tick labels. A <see cref="ConsoleColor"/> assigned here widens to
+        /// its RGB value.
         /// </summary>
-        public ConsoleColor Color { get; set; } = ConsoleColor.White;
+        public ConsoleGUI.Data.Color Color { get; set; } = ConsoleColor.White;
 
         /// <summary>
         /// Gets or sets a value indicating whether labels should be attached to the axis.

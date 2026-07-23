@@ -32,9 +32,10 @@ namespace ConsolePlot.Plotting
         public string YTitle { get; set; }
 
         /// <summary>
-        /// Colour of the <see cref="XTitle"/>/<see cref="YTitle"/> captions.
+        /// Full-RGB colour of the <see cref="XTitle"/>/<see cref="YTitle"/> captions. A <see cref="ConsoleColor"/>
+        /// assigned here widens to its RGB value.
         /// </summary>
-        public ConsoleColor TitleColor { get; set; } = ConsoleColor.Gray;
+        public ConsoleGUI.Data.Color TitleColor { get; set; } = ConsoleColor.Gray;
 
         /// <summary>
         /// Validates the axis settings.

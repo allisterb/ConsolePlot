@@ -108,7 +108,7 @@ namespace ConsolePlot.Drawing
         /// <exception cref="InvalidOperationException">Thrown when the text exceeds image dimensions and ensureVisible is true.</exception>
         public void DrawString(
             string s,
-            ConsoleColor color,
+            ConsoleGUI.Data.Color color,
             int x,
             int y,
             TextDirection direction = TextDirection.Horizontal,
@@ -156,8 +156,8 @@ namespace ConsolePlot.Drawing
 
         /// <summary>
         /// Draws a string with a full-colour foreground and an optional background, one cell per character. Unlike
-        /// <see cref="DrawString"/> (16-colour foreground only), this carries RGB colours and a per-cell background —
-        /// used for point annotations. Cells outside the clip bounds are skipped.
+        /// <see cref="DrawString"/> (RGB foreground, no background, with <c>ensureVisible</c> clamping), this adds a
+        /// per-cell background — used for point annotations. Cells outside the clip bounds are skipped.
         /// </summary>
         /// <param name="s">The text to draw.</param>
         /// <param name="foreground">The foreground colour.</param>
