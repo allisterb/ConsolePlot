@@ -166,7 +166,14 @@ namespace ConsolePlot.Plotting
 
         private static double CalculateTickStep(double min, double max, int desiredStep, int size)
         {
-            return NiceNumber((max - min) / (size / desiredStep), true);
+            // `size / desiredStep` is INTEGER division, so both operands need guarding before it is used as a
+            // divisor. A desiredStep of 0 threw DivideByZeroException outright; a desiredStep wider than the axis
+            // floored the quotient to 0, which made the outer division +infinity, NiceNumber return infinity, and
+            // GenerateTicks emit a single tick at 0 * infinity = NaN -- a silently broken axis. Clamping to at least
+            // one tick degrades an over-wide step to a single tick, which is what "a tick every N cells" should mean
+            // once N exceeds the axis length.
+            var tickCount = Math.Max(1, size / Math.Max(1, desiredStep));
+            return NiceNumber((max - min) / tickCount, true);
         }
 
         // A pinned axis: the bounds are exactly [min, max] (no adjustment), with nice-number ticks generated inside
