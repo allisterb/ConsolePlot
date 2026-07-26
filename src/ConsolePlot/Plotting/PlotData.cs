@@ -74,14 +74,22 @@ namespace ConsolePlot.Plotting
             // Per axis, in priority order: explicit (categorical) ticks (used verbatim, element bounds kept) →
             // a fixed/pinned range (used verbatim, ticks generated within it) → auto (nice-number bounds + ticks).
             // Only the auto path runs the bounds adjustment; the other two keep the axis stable for live updates.
+            // Custom ticks and a pinned range are ORTHOGONAL: naming where the ticks go says nothing about how far
+            // the axis should reach. A caller that set both used to silently lose the range, because this branch
+            // fell back to the data extent — so one stray point (a reference line anchored at 0, say) could stretch
+            // the axis far past the pinned window and leave a wide empty margin.
             var (adjustedYBounds, yTicks) = settings.Ticks.CustomYTicks is { Count: > 0 } customY
-                ? ((min: initialBounds.YMin, max: initialBounds.YMax), ToTicks(customY))
+                ? (settings.FixedYRange is { } pinnedY
+                    ? (min: pinnedY.Min, max: pinnedY.Max)
+                    : (min: initialBounds.YMin, max: initialBounds.YMax), ToTicks(customY))
                 : settings.FixedYRange is { } fixedY
                     ? FixedAxis(settings, fixedY.Min, fixedY.Max, settings.Ticks.DesiredYStep, height)
                     : CalculateAdjustedBoundsAndTicks(settings, initialBounds.YMin,
                         initialBounds.YMax, settings.Ticks.DesiredYStep, height, CalculateXTickLabelSize());
             var (adjustedXBounds, xTicks) = settings.Ticks.CustomXTicks is { Count: > 0 } customX
-                ? ((min: initialBounds.XMin, max: initialBounds.XMax), ToTicks(customX))
+                ? (settings.FixedXRange is { } pinnedX
+                    ? (min: pinnedX.Min, max: pinnedX.Max)
+                    : (min: initialBounds.XMin, max: initialBounds.XMax), ToTicks(customX))
                 : settings.FixedXRange is { } fixedX
                     ? FixedAxis(settings, fixedX.Min, fixedX.Max, settings.Ticks.DesiredXStep, width)
                     : settings.XWindow is { } xWindow
