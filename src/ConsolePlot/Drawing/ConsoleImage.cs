@@ -15,6 +15,10 @@ namespace ConsolePlot.Drawing
     {
         private readonly IConsoleBuffer _target;
 
+        // Which cells this image has written since the last Clear. A reference field, so every copy of this readonly
+        // struct (it is passed by value into the graphics classes) shares the one tracker.
+        private readonly DrawnCells _drawn;
+
         /// <summary>Gets the width of the image.</summary>
         public int Width { get; }
 
@@ -30,6 +34,7 @@ namespace ConsolePlot.Drawing
             _target = target;
             Width = target.Size.Width;
             Height = target.Size.Height;
+            _drawn = new DrawnCells(Width * Height);
         }
 
         /// <summary>The render target this image draws into.</summary>
@@ -47,7 +52,37 @@ namespace ConsolePlot.Drawing
         {
             // No bounds check: the render target throws on an out-of-range write, and every caller already clips to
             // the image via ClipBounds, so a guard here would only add a redundant branch to the per-point hot path.
-            _target.Write(x, Height - 1 - y, new Character(c, foregroundColor, backgroundColor));
+            var row = Height - 1 - y;
+            _drawn?.Mark((row * Width) + x);
+            _target.Write(x, row, new Character(c, foregroundColor, backgroundColor));
+        }
+
+        /// <summary>
+        /// Erases the cells drawn since the previous clear, rather than every cell in the image.
+        /// </summary>
+        /// <remarks>
+        /// A plot redraws from scratch each frame, so the old content has to go — but blanking the WHOLE surface
+        /// costs one write per cell regardless of how little was drawn, which for a live plot (see the host's
+        /// <c>AddLiveSeries</c>) is paid on every tick forever. A sparse figure touches a small fraction of its
+        /// cells, so erasing just those turns the per-frame cost from O(area) into O(content).
+        /// <para>The first clear after construction (or a resize, which builds a new image) still blanks everything:
+        /// the render target may hold content this image never wrote and therefore knows nothing about.</para>
+        /// </remarks>
+        internal void ClearDrawn(char clearChar, ConsoleGUI.Data.Color clearColor)
+        {
+            var blank = new Character(clearChar, clearColor);
+            if (_drawn is null || _drawn.NeedsFullClear)
+            {
+                for (var y = 0; y < Height; y++)
+                    for (var x = 0; x < Width; x++)
+                        _target.Write(x, y, blank);
+                _drawn?.Reset();
+                return;
+            }
+
+            foreach (var index in _drawn.Marked)
+                _target.Write(index % Width, index / Width, blank);
+            _drawn.Reset();
         }
 
         /// <summary>

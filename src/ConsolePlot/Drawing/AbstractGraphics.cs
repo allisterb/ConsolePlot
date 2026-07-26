@@ -52,15 +52,14 @@ namespace ConsolePlot.Drawing
         /// </summary>
         /// <param name="clearChar">The character to fill the image with.</param>
         /// <param name="clearColor">The color to use for filling.</param>
+        /// <remarks>
+        /// Erases only the cells drawn since the last clear (see <see cref="ConsoleImage.ClearDrawn"/>), not every
+        /// cell — the visible result is identical, but a sparse figure no longer pays one write per cell of its whole
+        /// area on every redraw.
+        /// </remarks>
         public void Clear(char clearChar = ' ', ConsoleColor clearColor = ConsoleColor.White)
         {
-            for (var y = 0; y < Image.Height; y++)
-            {
-                for (var x = 0; x < Image.Width; x++)
-                {
-                    Image.SetPixel(x, y, clearChar, clearColor);
-                }
-            }
+            Image.ClearDrawn(clearChar, clearColor);
         }
 
         /// <summary>
