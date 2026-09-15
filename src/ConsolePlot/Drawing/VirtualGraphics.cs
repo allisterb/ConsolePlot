@@ -89,14 +89,23 @@ namespace ConsolePlot.Drawing
         // Folds sub-pixel (x, y) into the target cell's rich glyph via the brush. Guards on the REAL buffer bounds
         // (image.Width/Height), not the scaled virtual bounds: line points are already clipped there by ClipLine, but
         // a DrawPoint (scatter) can land off-axis, and a sub-pixel column past the last cell must be dropped rather
-        // than written out of the image. DivRem gives a negative bufferX/bufferY for a negative coordinate, which the
-        // same bounds test rejects.
+        // than written out of the image.
         private void Plot(int x, int y)
         {
+            // Reject negatives BEFORE dividing. Integer division truncates toward ZERO, so a coordinate that is
+            // negative but within the first cell (-1 .. -(resolution-1)) gives a quotient of 0 -- which passes a
+            // "bufferY < 0" test -- while leaving the remainder NEGATIVE. A negative sub-pixel is not a dot any brush
+            // can render: BrailleBrush threw ArgumentOutOfRangeException for exactly (0,-1), (0,-2) and (0,-3), once
+            // per off-canvas point, and something upstream swallowed it. Only y <= -resolution ever produced the
+            // negative quotient the old guard assumed, so the shallowest overshoots -- a waveform just clipping the
+            // top of its box -- were the ones that leaked through.
+            if (x < 0 || y < 0)
+                return;
+
             var bufferX = Math.DivRem(x, _pen.Brush.HorizontalResolution, out var subX);
             var bufferY = Math.DivRem(y, _pen.Brush.VerticalResolution, out var subY);
 
-            if (bufferX < 0 || bufferX >= _image.Width || bufferY < 0 || bufferY >= _image.Height)
+            if (bufferX >= _image.Width || bufferY >= _image.Height)
                 return;
 
             var cell = _image.GetCharacter(bufferX, bufferY);
